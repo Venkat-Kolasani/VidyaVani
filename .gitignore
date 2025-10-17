@@ -52,11 +52,7 @@ logs/*.log
 .pytest_cache/
 .coverage
 
-# Data files (generated content)
-data/ncert/*.pdf
-data/ncert/processed/
-data/ncert/*_chunks.json
-data/ncert/vector_db/
+# Data files (only exclude temporary/cache files)
 data/faiss/
 *.pkl
 *.json.gz
