@@ -2,13 +2,13 @@
 
 ## Overview
 
-VidyaVani is an AI-powered Interactive Voice Response (IVR) system that enables students in rural India to access NCERT Class 10 Science education through basic phone calls. The system combines Twilio IVR, OpenAI's GPT-4o-mini, Google Cloud Speech services, and a RAG (Retrieval-Augmented Generation) architecture to deliver personalized, multilingual educational content without requiring internet access from the student's end.
+VidyaVani is an AI-powered Interactive Voice Response (IVR) system that enables students in rural India to access NCERT Class 10 Science education through basic phone calls. The system combines Exotel IVR, OpenAI's GPT-4o-mini, Google Cloud Speech services, and a RAG (Retrieval-Augmented Generation) architecture to deliver personalized, multilingual educational content without requiring internet access from the student's end.
 
 ## Technology Stack Summary
 
 | Layer | Technology | Version | Purpose |
 |-------|-----------|---------|---------|
-| **IVR Layer** | Twilio Programmable Voice | Latest | Call handling, DTMF, recording |
+| **IVR Layer** | Exotel Voice Platform | Latest | Call handling, DTMF, recording |
 | **Backend** | Python + Flask | 3.9+ / 2.3+ | API orchestration |
 | **STT** | Google Cloud Speech-to-Text | v1 | Voice to text conversion |
 | **TTS** | Google Cloud Text-to-Speech | v1 | Text to voice conversion |
@@ -34,7 +34,7 @@ VidyaVani is an AI-powered Interactive Voice Response (IVR) system that enables 
 
 ```mermaid
 graph TB
-    A[Student with Basic Phone] --> B[Twilio IVR System]
+    A[Student with Basic Phone] --> B[Exotel IVR System]
     B --> C[Flask Backend Server]
     
     C --> D[Session Manager]
@@ -72,7 +72,7 @@ The system follows a microservices-inspired modular design within a single Flask
 **Purpose**: Handles phone call interactions and menu navigation
 
 **Key Components**:
-- **Call Handler**: Processes incoming Twilio webhooks
+- **Call Handler**: Processes incoming Exotel webhooks
 - **Menu System**: Manages language selection and navigation flow
 - **Audio Recorder**: Captures student voice input (15-second limit)
 - **Response Player**: Delivers TTS audio responses
@@ -80,11 +80,11 @@ The system follows a microservices-inspired modular design within a single Flask
 **Interface Specifications**:
 ```python
 class IVRInterface:
-    def handle_incoming_call(self, request) -> TwiMLResponse
-    def process_language_selection(self, language_code: str) -> TwiMLResponse
-    def record_question(self, session_id: str) -> TwiMLResponse
-    def play_response(self, audio_url: str, session_id: str) -> TwiMLResponse
-    def handle_menu_navigation(self, digit: str, session_id: str) -> TwiMLResponse
+    def handle_incoming_call(self, request) -> ExotelResponse
+    def process_language_selection(self, language_code: str) -> ExotelResponse
+    def record_question(self, session_id: str) -> ExotelResponse
+    def play_response(self, audio_url: str, session_id: str) -> ExotelResponse
+    def handle_menu_navigation(self, digit: str, session_id: str) -> ExotelResponse
 ```
 
 **Menu Flow Design**:
@@ -115,7 +115,7 @@ class AudioProcessor:
 **Performance Optimizations**:
 - Parallel STT processing while initializing content retrieval
 - Audio streaming for faster TTS delivery
-- Codec optimization for Twilio compatibility (PCMU/PCMA)
+- Codec optimization for IVR platform compatibility (PCMU/PCMA)
 - Background noise filtering for rural environments
 
 ### 3. RAG Engine
@@ -342,7 +342,7 @@ ERROR_RESPONSES = {
 - **Caching**: Cache hit/miss scenarios and TTL behavior
 
 **2. Integration Tests (35% of testing effort)**:
-- **API Integration**: Twilio, OpenAI, Google Cloud services
+- **API Integration**: Exotel, OpenAI, Google Cloud services
 - **End-to-End Flows**: Complete call scenarios with mocked external services
 - **Error Handling**: Failure scenarios and recovery mechanisms
 - **Performance**: Response time measurements under load
@@ -399,31 +399,31 @@ class TestSuite:
 
 ## API Endpoints Specification
 
-### Twilio Webhook Endpoints
+### Exotel Webhook Endpoints
 
 **POST /webhook/incoming-call**
 - **Purpose**: Handle incoming call initiation
-- **Request**: Twilio webhook payload
-- **Response**: TwiML with welcome message and language selection
+- **Request**: Exotel webhook payload
+- **Response**: XML with welcome message and language selection
 - **Expected Response Time**: < 500ms
 
 **POST /webhook/language-selection**
 - **Purpose**: Process DTMF language selection
 - **Parameters**: `Digits` (1=English, 2=Telugu)
-- **Response**: TwiML with grade confirmation
+- **Response**: XML with grade confirmation
 - **Expected Response Time**: < 200ms
 
 **POST /webhook/record-question**
 - **Purpose**: Receive and process recorded question audio
 - **Parameters**: `RecordingUrl`, `SessionId`, `Language`
-- **Response**: TwiML to play "Processing..." message
+- **Response**: XML to play "Processing..." message
 - **Triggers**: Async question processing pipeline
 - **Expected Response Time**: < 300ms (acknowledgment only)
 
 **POST /webhook/deliver-response**
 - **Purpose**: Play generated answer audio
 - **Parameters**: `ResponseAudioUrl`, `SessionId`
-- **Response**: TwiML with follow-up menu options
+- **Response**: XML with follow-up menu options
 - **Expected Response Time**: < 200ms
 
 ### Internal API Endpoints
@@ -579,7 +579,7 @@ class PrivacyManager:
 - **Storage**: 1GB for NCERT content and FAISS index
 
 **2. External Services**:
-- **Twilio**: IVR and voice services (trial account)
+- **Exotel**: IVR and voice services (trial account)
 - **OpenAI**: GPT-4o-mini and Embeddings API (free tier)
 - **Google Cloud**: Speech-to-Text and Text-to-Speech (free tier)
 
@@ -625,10 +625,12 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-    # Twilio Configuration
-    TWILIO_ACCOUNT_SID: str = os.getenv('TWILIO_ACCOUNT_SID')
-    TWILIO_AUTH_TOKEN: str = os.getenv('TWILIO_AUTH_TOKEN')
-    TWILIO_PHONE_NUMBER: str = os.getenv('TWILIO_PHONE_NUMBER')
+    # Exotel Configuration
+    EXOTEL_ACCOUNT_SID: str = os.getenv('EXOTEL_ACCOUNT_SID')
+    EXOTEL_API_KEY: str = os.getenv('EXOTEL_API_KEY')
+    EXOTEL_API_TOKEN: str = os.getenv('EXOTEL_API_TOKEN')
+    EXOTEL_PHONE_NUMBER: str = os.getenv('EXOTEL_PHONE_NUMBER')
+    EXOTEL_APP_ID: str = os.getenv('EXOTEL_APP_ID')
     
     # OpenAI Configuration
     OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY')
@@ -651,7 +653,7 @@ This comprehensive design provides a solid foundation for implementing the Vidya
 
 | Requirement | Design Components | Implementation Notes |
 |-------------|------------------|---------------------|
-| **Req 1**: Phone-based access | IVR Interface, Twilio Integration | DTMF menu navigation |
+| **Req 1**: Phone-based access | IVR Interface, Exotel Integration | DTMF menu navigation |
 | **Req 2**: NCERT accuracy | RAG Engine, Content Management | 90% accuracy target |
 | **Req 3**: Telugu support | Audio Processing, TTS Service | Google Cloud multilingual APIs |
 | **Req 4**: Detailed explanations | RAG Engine (detail_level parameter) | Simple vs detailed modes |
@@ -661,7 +663,7 @@ This comprehensive design provides a solid foundation for implementing the Vidya
 | **Req 8**: Security | Security & Privacy Design | No PII storage |
 | **Req 9**: Free-tier operation | Cache Layer, Rate Limiting | Cost optimization |
 | **Req 10**: Error handling | Error Handling strategies | Retry logic, fallbacks |
-| **Req 11**: API integration | All external service integrations | Twilio, OpenAI, Google |
+| **Req 11**: API integration | All external service integrations | Exotel, OpenAI, Google |
 | **Req 12**: Content management | Content Management System | NCERT PDF processing |
 | **Req 13**: Deployment | Deployment Architecture | Render/Railway hosting |
 | **Req 14**: Testing | Testing Strategy | 20-question test set |

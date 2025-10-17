@@ -147,7 +147,7 @@ VidyaVani is an AI-powered Interactive Voice Response (IVR) learning system that
 
 #### Acceptance Criteria
 
-1. THE VidyaVani_System SHALL integrate with Twilio API for IVR call handling
+1. THE VidyaVani_System SHALL integrate with Exotel API for IVR call handling
 2. THE STT_Service SHALL use Google Cloud Speech-to-Text API with multilingual support enabled
 3. THE TTS_Service SHALL use Google Cloud Text-to-Speech API with Indian English and Telugu voices
 4. THE RAG_Engine SHALL use OpenAI GPT-4o-mini API for response generation
@@ -206,9 +206,9 @@ Project Constraints
 
 ### Technical Constraints
 
-- Must use free-tier services (Twilio trial, OpenAI free credits, Google Cloud free tier)
+- Must use free-tier services (Exotel trial, OpenAI free credits, Google Cloud free tier)
 - Must complete development within 48 hours for hackathon
-- Limited to Twilio trial credit limits (~$15 USD)
+- Limited to Exotel trial credit limits (~equivalent to trial credits)
 - OpenAI free credit cap (~$5 USD)
 
 ### Content Constraints
@@ -244,7 +244,7 @@ The following features are explicitly NOT included in the hackathon prototype bu
 
 ### Required Third-Party APIs
 
-1. **Twilio API** - IVR call handling, voice recording, audio playback
+1. **Exotel API** - IVR call handling, voice recording, audio playback
 2. **OpenAI API** - GPT-4o-mini for answer generation and Embeddings for content vectorization
 3. **Google Cloud Speech-to-Text API** - Voice to text conversion with English and Telugu support
 4. **Google Cloud Text-to-Speech API** - Text to voice conversion with Indian voices
@@ -264,7 +264,7 @@ The following features are explicitly NOT included in the hackathon prototype bu
    - google-cloud-speech, google-cloud-texttospeech
    - openai
    - faiss-cpu (vector database)
-   - twilio
+   - exotel (handled via webhook/XML; no Python SDK required)
    - PyPDF2 or pdfplumber (content extraction)
 
 ### Network Requirements

@@ -9,8 +9,8 @@
 
 - [x] 1. Set up project foundation and environment
   - Create Python Flask project structure with proper directory organization
-  - Set up virtual environment and install required dependencies (Flask, openai, google-cloud-speech, google-cloud-texttospeech, twilio, faiss-cpu, PyPDF2)
-  - Configure environment variables for API keys (Twilio, OpenAI, Google Cloud)
+  - Set up virtual environment and install required dependencies (Flask, openai, google-cloud-speech, google-cloud-texttospeech, faiss-cpu, PyPDF2)
+  - Configure environment variables for API keys (Exotel, OpenAI, Google Cloud)
   - Create basic Flask application with health check endpoint
   - Set up logging configuration for performance monitoring
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 13.2, 13.3_
@@ -36,7 +36,7 @@
 - [ ] 4. Build audio processing pipeline
   - Integrate Google Cloud Speech-to-Text API with multilingual support for English and Telugu
   - Implement Google Cloud Text-to-Speech API with Indian English and Telugu voice options
-  - Create audio quality optimization for Twilio compatibility (PCMU/PCMA codecs)
+  - Create audio quality optimization for IVR platform compatibility (PCMU/PCMA codecs)
   - Rely on Google's built-in noise robustness rather than custom filtering
   - Add simple fallback: "I'm sorry, there was too much background noise. Could you try asking again?"
   - Implement language detection and basic accent handling for Indian dialects
@@ -51,20 +51,20 @@
   - Focus on maintaining conversation context during single call duration
   - _Requirements: 4.3, 4.4, 9.2, 5.5, 7.1, 7.2, 8.1_
 
-- [ ] 6. Develop Twilio IVR interface and call handling
-  - Create Twilio webhook endpoints for incoming call handling and menu navigation
+- [ ] 6. Develop Exotel IVR interface and call handling
+  - Create Exotel webhook endpoints for incoming call handling and menu navigation
   - Implement language selection menu (1=English, 2=Telugu) with DTMF processing
   - Build voice recording functionality with 15-second limit for question capture
-  - Create TwiML response generation for menu options and audio playback
+  - Create XML response generation for menu options and audio playback
   - Add essential follow-up menu: "Press 1 for detailed explanation, 2 to hear again, 3 for new question, 9 for main menu"
   - Start with direct question flow only, add topic browsing later if time permits
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 6.1, 6.2, 6.3, 11.1_
 
 - [ ] 7. Integrate end-to-end question processing workflow
-  - Connect Twilio webhooks to Flask backend for seamless call processing
+  - Connect Exotel webhooks to Flask backend for seamless call processing
   - Implement SYNCHRONOUS processing pipeline (STT → RAG → TTS) for simplicity
   - User waits 5-8 seconds for response (acceptable for demo, much faster to build)
-  - Build response delivery system with audio playback through Twilio
+  - Build response delivery system with audio playback through Exotel
   - Add basic error handling with simple try/except blocks and fallback messages
   - Implement graceful fallbacks for unclear audio and off-topic questions
   - _Requirements: 1.5, 5.1, 5.2, 5.3, 10.1, 10.2, 10.4_
