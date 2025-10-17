@@ -6,7 +6,7 @@ Main Flask application entry point
 import os
 import logging
 from flask import Flask, request, jsonify
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import configuration
 from config import Config
@@ -33,7 +33,7 @@ def health_check():
     try:
         health_status = {
             'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'version': '1.0.0',
             'service': 'VidyaVani IVR System'
         }
@@ -48,7 +48,7 @@ def health_check():
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }), 500
 
 @app.route('/', methods=['GET'])
