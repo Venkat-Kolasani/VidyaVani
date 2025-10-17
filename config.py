@@ -26,6 +26,11 @@ class Config:
     OPENAI_MAX_TOKENS: int = int(os.getenv('OPENAI_MAX_TOKENS', '150'))
     OPENAI_TEMPERATURE: float = float(os.getenv('OPENAI_TEMPERATURE', '0.3'))
     
+    # LLM Configuration
+    LLM_MODEL = os.getenv('LLM_MODEL', 'gpt-5-nano')  # Changed from gpt-4o-mini
+    LLM_TEMPERATURE = float(os.getenv('LLM_TEMPERATURE', '0.7'))
+    LLM_MAX_TOKENS = int(os.getenv('LLM_MAX_TOKENS', '500'))
+    
     # Google Cloud Configuration
     GOOGLE_CLOUD_PROJECT: str = os.getenv('GOOGLE_CLOUD_PROJECT', '')
     GOOGLE_APPLICATION_CREDENTIALS: str = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '')

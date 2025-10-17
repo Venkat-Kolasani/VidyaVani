@@ -201,6 +201,27 @@ VidyaVani is an AI-powered Interactive Voice Response (IVR) learning system that
 3. THE VidyaVani_System SHALL provide call recording functionality for presentation
 4. THE VidyaVani_System SHALL include visual dashboard showing processing steps during demo
 5. THE VidyaVani_System SHALL document all technical architecture and API integrations for judges
+
+## 3. AI Answer Generation (Requirements 3.4-3.5)
+
+| ID | Requirement | Implementation |
+|----|-------------|-----------------|
+| 3.4 | LLM Integration | OpenAI GPT-5-nano API for answer generation |
+| 3.5 | Temperature Control | Configure temperature=0.7 for balanced creativity/accuracy |
+
+## External Dependencies
+
+- **OpenAI API**: GPT-5-nano model for answer generation, text-embedding-3-small for embeddings
+- **Google Cloud API**: Speech-to-Text, Text-to-Speech services
+- **Exotel API**: Voice call handling and IVR webhooks
+- **FAISS**: Vector search library for semantic retrieval
+
+## Cost & Performance Targets
+
+- **GPT-5-nano**: More efficient than GPT-4o-mini, lower latency
+- **Target response time**: 8 seconds (STT + RAG + LLM + TTS)
+- **Free tier compatibility**: Estimated 100-200 questions/month
+
 ## 
 Project Constraints
 

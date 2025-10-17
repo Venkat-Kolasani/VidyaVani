@@ -1,7 +1,7 @@
 # Implementation Plan
 
 ## Buildathon Strategy: Focus on the Magic Moment
-**Core Demo Goal**: Student calls → asks complex question in Telugu/English → receives accurate, natural AI tutor response
+**Core Demo Goal**: Student calls → asks complex question in Telugu/English → receives accurate, natural AI tutor response via GPT-5-nano
 
 **Phase 1: Must-Haves (Core Demo)** - Tasks 1-7
 **Phase 2: Should-Haves (Demo Polish)** - Tasks 8-10  
@@ -24,14 +24,10 @@
   - Expand to full NCERT content only after end-to-end pipeline works
   - _Requirements: 12.1, 12.2, 11.5, 2.1, 2.2_
 
-- [x] 3. Develop core RAG engine for question processing
+- [ ] 3. Develop core RAG engine for question processing
   - Implement semantic search functionality using FAISS to retrieve top-3 relevant content chunks
-  - Create context builder that assembles retrieved content with question for OpenAI processing
-  - Develop response generator using OpenAI GPT-4o-mini with persona-based prompts
-  - Create "Vidya" AI tutor persona: "You are 'Vidya', a friendly AI tutor for 10th-grade students in rural India. Explain using simple analogies from everyday life (cooking, farming). Keep responses under 90 seconds when spoken."
-  - Add language-specific prompt engineering for English and Telugu responses
-  - Focus on ONE great prompt that works reliably before adding complexity
   - _Requirements: 2.3, 2.4, 4.1, 4.2, 11.4, 3.1, 3.2_
+  - **Note**: Uses GPT-5-nano for answer generation
 
 - [ ] 4. Build audio processing pipeline
   - Integrate Google Cloud Speech-to-Text API with multilingual support for English and Telugu

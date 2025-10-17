@@ -172,16 +172,39 @@ Logs are stored in the `logs/` directory:
 - `vidyavani_YYYYMMDD.log` - General application logs
 - `performance.log` - Performance metrics
 
+## Technology Stack
+
+- **Backend**: Python 3.9+ with Flask
+- **LLM**: OpenAI GPT-5-nano for intelligent tutoring responses
+- **Embeddings**: OpenAI text-embedding-3-small for semantic search
+- **Vector DB**: FAISS for efficient content retrieval
+- **Speech**: Google Cloud Speech-to-Text (STT) and Text-to-Speech (TTS)
+- **IVR**: Exotel voice platform for call handling
+- **Storage**: Local vector database with metadata persistence
+
 ## Architecture
 
-The system uses a modular architecture with the following key components:
+The VidyaVani system uses a RAG (Retrieval-Augmented Generation) architecture:
 
-1. **IVR Interface**: Handles Exotel webhooks and call flow
-2. **Audio Processing**: STT/TTS using Google Cloud APIs
-3. **RAG Engine**: Retrieval-Augmented Generation for educational content
-4. **Content Management**: NCERT curriculum processing and storage
-5. **Session Management**: Call state and context management
-6. **Caching Layer**: Performance optimization through intelligent caching
+1. **User Query** → Exotel IVR
+2. **Speech-to-Text** → Google Cloud STT
+3. **Semantic Search** → FAISS vector DB retrieves top-3 NCERT chunks
+4. **Answer Generation** → GPT-5-nano with retrieved context
+5. **Text-to-Speech** → Google Cloud TTS
+6. **Response** → Exotel IVR plays audio back to student
+
+## Configuration
+
+Key environment variables (see `.env.example`):
+
+```bash
+# LLM Settings
+LLM_MODEL=gpt-5-nano
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=500
+
+# Other services...
+```
 
 ## Contributing
 

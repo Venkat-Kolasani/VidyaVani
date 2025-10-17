@@ -7,6 +7,7 @@ import os
 import logging
 from flask import Flask, request, jsonify
 from datetime import datetime, timezone
+import numpy as np
 
 # Import configuration
 from config import Config
@@ -29,27 +30,14 @@ logger = logging.getLogger(__name__)
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint for monitoring"""
-    try:
-        health_status = {
-            'status': 'healthy',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'version': '1.0.0',
-            'service': 'VidyaVani IVR System'
-        }
-        
-        # Log health check
-        logger.info(f"Health check requested - Status: {health_status['status']}")
-        
-        return jsonify(health_status), 200
-    
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': datetime.now(timezone.utc).isoformat()
-        }), 500
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'VidyaVani IVR Learning System',
+        'llm_model': os.environ.get('LLM_MODEL', 'gpt-5-nano'),
+        'embedding_model': 'text-embedding-3-small',
+        'timestamp': str(np.datetime64('now'))
+    })
 
 @app.route('/', methods=['GET'])
 def index():

@@ -12,7 +12,7 @@ VidyaVani is an AI-powered Interactive Voice Response (IVR) system that enables 
 | **Backend** | Python + Flask | 3.9+ / 2.3+ | API orchestration |
 | **STT** | Google Cloud Speech-to-Text | v1 | Voice to text conversion |
 | **TTS** | Google Cloud Text-to-Speech | v1 | Text to voice conversion |
-| **LLM** | OpenAI GPT-4o-mini | Latest | Answer generation |
+| **LLM** | OpenAI GPT-5-nano | Latest | Answer generation |
 | **Embeddings** | OpenAI Embeddings | text-embedding-3-small | Content vectorization |
 | **Vector DB** | FAISS | 1.7+ | Semantic search |
 | **Cache** | In-Memory (dict) / Redis | 7+ | Response & audio caching |
@@ -131,10 +131,19 @@ class AudioProcessor:
 **Interface Specifications**:
 ```python
 class RAGEngine:
-    def retrieve_content(self, question: str, top_k: int = 3) -> List[ContentChunk]
-    def build_context(self, question: str, content_chunks: List[ContentChunk]) -> str
-    def generate_response(self, context: str, question: str, language: str, detail_level: str) -> str
-    def format_for_voice(self, response: str, language: str) -> str
+    def generate_answer(self, context: str, question: str, language: str) -> str:
+        """
+        Generate answer using GPT-5-nano with RAG context
+        
+        Args:
+            context: Retrieved NCERT content
+            question: Student's question
+            language: Response language (english/telugu)
+            
+        Returns:
+            AI-generated answer
+        """
+        # Implementation with gpt-5-nano
 ```
 
 **Content Retrieval Strategy**:
