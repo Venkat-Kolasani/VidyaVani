@@ -68,6 +68,7 @@ audio_cache/
 # Google Cloud credentials
 *.json
 service-account-key.json
+.secrets/
 
 # OS
 .DS_Store
