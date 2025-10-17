@@ -1,0 +1,79 @@
+# VidyaVani IVR Learning System - Git Ignore
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/*.log
+*.log
+
+# Cache
+.cache/
+.pytest_cache/
+.coverage
+
+# Data files
+data/ncert/*.pdf
+data/ncert/processed/
+data/faiss/
+*.pkl
+*.json.gz
+
+# Audio files
+audio_cache/
+*.wav
+*.mp3
+*.m4a
+
+# Google Cloud credentials
+*.json
+service-account-key.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
