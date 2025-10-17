@@ -7,7 +7,7 @@ VidyaVani is an AI-powered Interactive Voice Response (IVR) learning system that
 - **Phone-based Access**: Works with any basic mobile phone or landline
 - **Multilingual Support**: English and Telugu language support
 - **NCERT Curriculum**: Based on official Class 10 Science content
-- **AI-Powered Responses**: Uses OpenAI GPT-4o-mini for intelligent tutoring
+- **AI-Powered Responses**: Uses OpenAI GPT-5-nano for intelligent tutoring
 - **Voice Processing**: Google Cloud Speech-to-Text and Text-to-Speech
 - **Exotel Integration**: Uses Exotel APIs for Indian telephony infrastructure
 - **Fast Response**: Target response time under 8 seconds
