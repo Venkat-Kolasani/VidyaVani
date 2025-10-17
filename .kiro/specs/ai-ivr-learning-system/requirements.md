@@ -222,3 +222,53 @@ Project Constraints
 - Target maximum 8 seconds response time (average case)
 - Must work on basic 2G/3G phone networks
 - Must operate within 500ms-2000ms network latency conditions
+## O
+ut of Scope (For Hackathon Prototype)
+
+The following features are explicitly NOT included in the hackathon prototype but may be considered for future phases:
+
+- Voice-based quizzes and assessments
+- Progress tracking across multiple sessions
+- User authentication and personal accounts
+- Subjects beyond Class 10 Science (Math, Social Studies, Languages)
+- Grade levels beyond Class 10
+- Languages beyond English and Telugu
+- Payment or subscription features
+- Mobile application interface
+- Teacher and parent dashboards
+- SMS notifications or reminders
+- Offline voice recognition capabilities
+- Advanced analytics and reporting
+
+## External Dependencies
+
+### Required Third-Party APIs
+
+1. **Twilio API** - IVR call handling, voice recording, audio playback
+2. **OpenAI API** - GPT-4o-mini for answer generation and Embeddings for content vectorization
+3. **Google Cloud Speech-to-Text API** - Voice to text conversion with English and Telugu support
+4. **Google Cloud Text-to-Speech API** - Text to voice conversion with Indian voices
+
+### Required Content Sources
+
+1. **NCERT Class 10 Science Textbooks** (English) - Available at ncert.nic.in
+2. **Telugu translations or resources** - State education board materials or translation services
+
+### Required Infrastructure
+
+1. **Cloud hosting platform** - Render.com or Railway.app (free tier)
+2. **GitHub repository** - Version control and CI/CD
+3. **Python 3.9+** - Runtime environment
+4. **Required Python libraries**:
+   - Flask/FastAPI (web framework)
+   - google-cloud-speech, google-cloud-texttospeech
+   - openai
+   - faiss-cpu (vector database)
+   - twilio
+   - PyPDF2 or pdfplumber (content extraction)
+
+### Network Requirements
+
+1. **Stable internet connection** for backend server
+2. **HTTPS support** for webhook security
+3. **Low-latency hosting** in India region preferred
