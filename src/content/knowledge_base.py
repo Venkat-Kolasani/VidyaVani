@@ -81,9 +81,13 @@ class NCERTKnowledgeBase:
         logger.info("Processing NCERT content...")
         chunks = self.content_processor.process_all_content()
         
-        # Add to search engine
+        # Add to search engine (even if embeddings failed)
         logger.info("Adding content to vector database...")
         self.search_engine.add_content(chunks)
+        
+        # Force save the database even with zero embeddings
+        logger.info("Saving vector database...")
+        self.search_engine.vector_db.save_database()
         
         # Display final statistics
         final_stats = self.search_engine.get_stats()

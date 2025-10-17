@@ -712,13 +712,15 @@ class NCERTContentProcessor:
             logger.error("No content chunks created")
             return []
         
-        # Generate embeddings for all chunks
+        # Generate embeddings for all chunks (or use zero vectors if API fails)
         logger.info(f"Generating embeddings for {len(all_chunks)} chunks")
         chunks_with_embeddings = self.generate_embeddings(all_chunks)
         
-        # Save to file
+        # Save to file regardless of embedding success
         output_path = "data/ncert/processed_content_chunks.json"
         self.save_chunks_to_file(chunks_with_embeddings, output_path)
+        
+        logger.info(f"Content processing completed. Saved {len(chunks_with_embeddings)} chunks.")
         
         logger.info(f"Successfully processed {len(chunks_with_embeddings)} content chunks")
         return chunks_with_embeddings

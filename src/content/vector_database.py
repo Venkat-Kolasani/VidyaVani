@@ -89,8 +89,9 @@ class FAISSVectorDatabase:
         
         for chunk in chunks:
             if chunk.embedding is None:
-                logger.warning(f"Chunk {chunk.id} has no embedding, skipping")
-                continue
+                logger.warning(f"Chunk {chunk.id} has no embedding, using zero vector")
+                # Create zero vector for chunks without embeddings
+                chunk.embedding = np.zeros(self.embedding_dimension)
             
             embeddings.append(chunk.embedding)
             
