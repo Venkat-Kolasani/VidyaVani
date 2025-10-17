@@ -24,7 +24,7 @@
   - Expand to full NCERT content only after end-to-end pipeline works
   - _Requirements: 12.1, 12.2, 11.5, 2.1, 2.2_
 
-- [ ] 3. Develop core RAG engine for question processing
+- [x] 3. Develop core RAG engine for question processing
   - Implement semantic search functionality using FAISS to retrieve top-3 relevant content chunks
   - _Requirements: 2.3, 2.4, 4.1, 4.2, 11.4, 3.1, 3.2_
   - **Note**: Uses GPT-5-nano for answer generation
