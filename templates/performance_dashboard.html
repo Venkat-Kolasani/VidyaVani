@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidyaVani Performance Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .metric-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.2em;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-healthy {
+            background-color: #4CAF50;
+        }
+
+        .status-warning {
+            background-color: #FF9800;
+        }
+
+        .status-critical {
+            background-color: #F44336;
+        }
+
+        .component-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .component-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .component-name {
+            font-weight: 500;
+        }
+
+        .component-metrics {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.3s ease;
+        }
+
+        .alert-item {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .alert-critical {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px 5px;
+        }
+
+        .refresh-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🎯 VidyaVani Performance Dashboard</h1>
+        <p>Real-time monitoring of IVR Learning System performance</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- System Overview -->
+        <div class="metric-card">
+            <h3><span class="status-indicator" id="system-status"></span>System Health</h3>
+            <div class="metric-value" id="total-calls">-</div>
+            <div class="metric-label">Total Calls Processed</div>
+            <div style="margin-top: 15px;">
+                <div>Concurrent: <strong id="concurrent-calls">-</strong></div>
+                <div>Uptime: <strong id="uptime">-</strong></div>
+            </div>
+        </div>
+
+        <!-- Response Times -->
+        <div class="metric-card">
+            <h3>⚡ Response Performance</h3>
+            <div class="metric-value" id="avg-response-time">-</div>
+            <div class="metric-label">Average Response Time (seconds)</div>
+            <div style="margin-top: 15px;">
+                <div>Target: <strong>
+                        < 8.0s</strong>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="response-time-progress"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Costs -->
+        <div class="metric-card">
+            <h3>💰 API Usage & Costs</h3>
+            <div class="metric-value" id="total-cost">$-</div>
+            <div class="metric-label">Total Estimated Cost</div>
+            <div style="margin-top: 15px;">
+                <div>Tokens Used: <strong id="total-tokens">-</strong></div>
+                <div>OpenAI Calls: <strong id="openai-calls">-</strong></div>
+            </div>
+        </div>
+
+        <!-- Cache Efficiency -->
+        <div class="metric-card">
+            <h3>🗄️ Cache Performance</h3>
+            <div class="metric-value" id="cache-hit-rate">-%</div>
+            <div class="metric-label">Overall Hit Rate</div>
+            <div style="margin-top: 15px;">
+                <div>Total Requests: <strong id="cache-requests">-</strong></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cache-progress"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Component Performance -->
+    <div class="metric-card">
+        <h3>🔧 Component Performance</h3>
+        <ul class="component-list" id="component-list">
+            <li class="loading">Loading component data...</li>
+        </ul>
+    </div>
+
+    <!-- Recent Alerts -->
+    <div class="metric-card">
+        <h3>⚠️ Recent Alerts</h3>
+        <div id="alerts-container">
+            <div class="loading">Loading alerts...</div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div style="text-align: center; margin: 20px 0;">
+        <button class="refresh-btn" onclick="refreshDashboard()">🔄 Refresh Data</button>
+        <button class="refresh-btn" onclick="exportMetrics()">📊 Export Metrics</button>
+        <button class="refresh-btn" onclick="toggleAutoRefresh()">⏱️ Auto Refresh: <span
+                id="auto-refresh-status">OFF</span></button>
+    </div>
+
+    <div class="timestamp" id="last-updated">
+        Last updated: -
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+        let autoRefreshEnabled = false;
+
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch('/api/performance/dashboard');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Failed to fetch dashboard data:', error);
+                showError('Failed to fetch performance data. Make sure the server is running.');
+                return null;
+            }
+        }
+
+        function updateSystemOverview(data) {
+            const overview = data.system_overview;
+            const systemStatus = document.getElementById('system-status');
+
+            // Update system health indicator
+            systemStatus.className = `status-indicator status-${overview.system_health}`;
+
+            // Update metrics
+            document.getElementById('total-calls').textContent = overview.total_calls;
+            document.getElementById('concurrent-calls').textContent = overview.concurrent_calls;
+            document.getElementById('uptime').textContent = `${overview.uptime_hours.toFixed(1)}h`;
+        }
+
+        function updatePerformanceMetrics(data) {
+            const summary = data.performance_summary;
+
+            // Calculate average response time across all components
+            const components = summary.components;
+            const avgResponseTime = Object.values(components).length > 0
+                ? Object.values(components).reduce((sum, comp) => sum + comp.avg_response_time, 0) / Object.values(components).length
+                : 0;
+
+            document.getElementById('avg-response-time').textContent = avgResponseTime.toFixed(2);
+
+            // Update progress bar (target is 8 seconds)
+            const progressPercent = Math.min((8 - avgResponseTime) / 8 * 100, 100);
+            document.getElementById('response-time-progress').style.width = `${Math.max(progressPercent, 0)}%`;
+
+            // Update API costs
+            document.getElementById('total-cost').textContent = summary.total_estimated_cost.toFixed(4);
+
+            // Calculate total tokens and OpenAI calls from detailed metrics
+            const apiMetrics = data.detailed_metrics.api_metrics;
+            const totalTokens = Object.values(apiMetrics).reduce((sum, api) => sum + api.total_tokens_used, 0);
+            const openaiCalls = (apiMetrics.openai_gpt?.total_requests || 0) + (apiMetrics.openai_embeddings?.total_requests || 0);
+
+            document.getElementById('total-tokens').textContent = totalTokens;
+            document.getElementById('openai-calls').textContent = openaiCalls;
+
+            // Update cache metrics
+            document.getElementById('cache-hit-rate').textContent = summary.cache_hit_rate.toFixed(1);
+
+            const cacheMetrics = data.detailed_metrics.cache_metrics;
+            const totalCacheRequests = Object.values(cacheMetrics).reduce((sum, cache) => sum + cache.total_requests, 0);
+            document.getElementById('cache-requests').textContent = totalCacheRequests;
+
+            // Update cache progress bar
+            document.getElementById('cache-progress').style.width = `${summary.cache_hit_rate}%`;
+        }
+
+        function updateComponentList(data) {
+            const components = data.performance_summary.components;
+            const componentList = document.getElementById('component-list');
+
+            if (Object.keys(components).length === 0) {
+                componentList.innerHTML = '<li class="component-item">No component data available</li>';
+                return;
+            }
+
+            componentList.innerHTML = Object.entries(components).map(([name, metrics]) => `
+                <li class="component-item">
+                    <div class="component-name">${name.replace(/_/g, ' ')}</div>
+                    <div class="component-metrics">
+                        ${metrics.avg_response_time.toFixed(3)}s | 
+                        ${metrics.success_rate.toFixed(1)}% | 
+                        ${metrics.total_calls} calls
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        function updateAlerts(data) {
+            const alerts = data.detailed_metrics.recent_alerts;
+            const alertsContainer = document.getElementById('alerts-container');
+
+            if (alerts.length === 0) {
+                alertsContainer.innerHTML = '<div style="color: #4CAF50; font-weight: 500;">✅ No recent alerts - System running smoothly</div>';
+                return;
+            }
+
+            alertsContainer.innerHTML = alerts.slice(-5).reverse().map(alert => `
+                <div class="alert-item ${alert.type.includes('critical') ? 'alert-critical' : ''}">
+                    <strong>${alert.type.replace(/_/g, ' ').toUpperCase()}</strong><br>
+                    Component: ${alert.component || 'System'}<br>
+                    ${alert.duration ? `Duration: ${alert.duration.toFixed(3)}s` : ''}
+                    ${alert.success_rate ? `Success Rate: ${alert.success_rate.toFixed(1)}%` : ''}
+                    <br><small>${new Date(alert.timestamp).toLocaleString()}</small>
+                </div>
+            `).join('');
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            document.body.insertBefore(errorDiv, document.body.firstChild);
+
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 5000);
+        }
+
+        async function refreshDashboard() {
+            const data = await fetchDashboardData();
+            if (!data) return;
+
+            updateSystemOverview(data);
+            updatePerformanceMetrics(data);
+            updateComponentList(data);
+            updateAlerts(data);
+
+            document.getElementById('last-updated').textContent =
+                `Last updated: ${new Date().toLocaleString()}`;
+        }
+
+        async function exportMetrics() {
+            try {
+                const response = await fetch('/api/performance/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+
+                if (response.ok) {
+                    alert('✅ Performance metrics exported successfully!');
+                } else {
+                    alert('❌ Failed to export metrics');
+                }
+            } catch (error) {
+                alert('❌ Error exporting metrics: ' + error.message);
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const statusSpan = document.getElementById('auto-refresh-status');
+
+            if (autoRefreshEnabled) {
+                statusSpan.textContent = 'ON';
+                autoRefreshInterval = setInterval(refreshDashboard, 10000); // Refresh every 10 seconds
+            } else {
+                statusSpan.textContent = 'OFF';
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function () {
+            refreshDashboard();
+        });
+    </script>
+</body>
+
+</html>""

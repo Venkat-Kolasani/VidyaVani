@@ -11,6 +11,13 @@ from dataclasses import dataclass, field
 from threading import Lock
 import logging
 
+# Import performance tracking
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils.performance_tracker import performance_tracker
+from utils.performance_decorators import track_cache_usage
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -153,6 +160,10 @@ class SessionManager:
                 phone_number=phone_number
             )
             self.sessions[phone_number] = session
+            
+            # Track session creation in performance metrics
+            performance_tracker.start_session_tracking(session_id, phone_number, "english")
+            
             logger.info(f"Created new session for {phone_number}")
             return session
     
@@ -209,10 +220,12 @@ class SessionManager:
                 return True
             return False
     
+    @track_cache_usage("demo_cache")
     def get_cached_demo_response(self, question: str) -> Optional[str]:
         """Get cached response for demo question"""
         question_hash = self._get_question_hash(question)
-        return self.demo_cache.get(question_hash)
+        result = self.demo_cache.get(question_hash)
+        return (result, result is not None)  # Return (result, hit) tuple for cache tracking
     
     def cache_audio_response(self, text: str, audio_data: bytes, language: str = "english"):
         """Cache TTS audio for faster delivery"""
@@ -220,10 +233,12 @@ class SessionManager:
         self.demo_audio_cache[cache_key] = audio_data
         logger.debug(f"Cached audio response for key: {cache_key}")
     
+    @track_cache_usage("audio_cache")
     def get_cached_audio(self, text: str, language: str = "english") -> Optional[bytes]:
         """Get cached TTS audio"""
         cache_key = f"{language}_{self._get_question_hash(text)}"
-        return self.demo_audio_cache.get(cache_key)
+        result = self.demo_audio_cache.get(cache_key)
+        return (result, result is not None)  # Return (result, hit) tuple for cache tracking
     
     def end_session(self, phone_number: str) -> bool:
         """End session when call ends"""
@@ -232,6 +247,10 @@ class SessionManager:
             if session:
                 session.call_active = False
                 session.update_activity()
+                
+                # End performance tracking for this session
+                performance_tracker.end_session_tracking(session.session_id)
+                
                 logger.info(f"Ended session for {phone_number}")
                 return True
             return False

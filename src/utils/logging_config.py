@@ -79,7 +79,7 @@ def setup_logging():
     return perf_logger
 
 class PerformanceLogger:
-    """Performance monitoring logger"""
+    """Performance monitoring logger with enhanced tracking"""
     
     def __init__(self):
         self.logger = logging.getLogger('performance')
@@ -89,9 +89,12 @@ class PerformanceLogger:
         session_info = f" - Session: {session_id}" if session_id else ""
         self.logger.info(f"{component}: {duration:.3f}s{session_info}")
     
-    def log_api_call(self, service: str, endpoint: str, duration: float, status: str):
-        """Log external API call performance"""
-        self.logger.info(f"API - {service}.{endpoint}: {duration:.3f}s - {status}")
+    def log_api_call(self, service: str, endpoint: str, duration: float, status: str, 
+                    tokens_used: int = 0, estimated_cost: float = 0.0):
+        """Log external API call performance with usage tracking"""
+        cost_info = f", Cost: ${estimated_cost:.4f}" if estimated_cost > 0 else ""
+        token_info = f", Tokens: {tokens_used}" if tokens_used > 0 else ""
+        self.logger.info(f"API - {service}.{endpoint}: {duration:.3f}s - {status}{token_info}{cost_info}")
     
     def log_cache_hit(self, cache_type: str, key_hash: str, hit: bool):
         """Log cache hit/miss"""
@@ -101,6 +104,15 @@ class PerformanceLogger:
     def log_concurrent_users(self, count: int):
         """Log concurrent user count"""
         self.logger.info(f"CONCURRENT_USERS: {count}")
+    
+    def log_processing_pipeline(self, phone_number: str, stage: str, duration: float, success: bool):
+        """Log processing pipeline stage performance"""
+        status = "SUCCESS" if success else "FAILED"
+        self.logger.info(f"PIPELINE - {phone_number} - {stage}: {duration:.3f}s - {status}")
+    
+    def log_error_recovery(self, component: str, error_type: str, recovery_action: str):
+        """Log error recovery actions"""
+        self.logger.info(f"ERROR_RECOVERY - {component}: {error_type} -> {recovery_action}")
 
 # Initialize performance logger instance
 performance_logger = PerformanceLogger()

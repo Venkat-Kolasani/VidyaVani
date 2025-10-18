@@ -29,7 +29,7 @@
   - _Requirements: 2.3, 2.4, 4.1, 4.2, 11.4, 3.1, 3.2_
   - **Note**: Uses GPT-5-nano for answer generation
 
-- [x] 4. Build audio processing pipeline
+`- [x] 4. Build audio processing pipeline
   - Integrate Google Cloud Speech-to-Text API with multilingual support for English and Telugu
   - Implement Google Cloud Text-to-Speech API with Indian English and Telugu voice options
   - Create audio quality optimization for IVR platform compatibility (PCMU/PCMA codecs)
@@ -65,7 +65,7 @@
   - Implement graceful fallbacks for unclear audio and off-topic questions
   - _Requirements: 1.5, 5.1, 5.2, 5.3, 10.1, 10.2, 10.4_
 
-- [ ] 8. Add basic performance tracking and demo polish
+- [x] 8. Add basic performance tracking and demo polish
   - Implement simple response time logging for each component (STT, RAG, TTS)
   - Create basic performance metrics collection (no complex dashboard needed for demo)
   - Add simple API usage tracking to avoid hitting free-tier limits

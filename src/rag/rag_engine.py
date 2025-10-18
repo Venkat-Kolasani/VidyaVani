@@ -19,6 +19,10 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from config import Config
 
+# Add performance tracking
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils.performance_decorators import track_performance, PipelineTracker
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,6 +63,7 @@ class RAGEngine:
         
         logger.info("RAG engine initialized successfully")
     
+    @track_performance("RAG_Processing")
     def process_question(self, question: str,
                         language: str = "English",
                         detail_level: str = "simple",

@@ -5,7 +5,7 @@ Main Flask application entry point
 
 import os
 import logging
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from datetime import datetime, timezone
 import numpy as np
 
@@ -21,20 +21,17 @@ from src.ivr.ivr_handler import IVRHandler
 # Import audio storage
 from src.storage.audio_storage import register_audio_routes
 
+# Import performance tracking and error tracking
+from src.utils.performance_tracker import performance_tracker
+from src.utils.error_tracker import error_tracker
+from src.utils.logging_config import setup_logging
+
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/app.log'),
-        logging.StreamHandler()
-    ]
-)
-
+# Configure logging with performance tracking
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Initialize IVR handler
@@ -76,7 +73,16 @@ def index():
             'demo_xml': '/demo/xml-responses',
             'api_docs': '/api/docs',
             'session_stats': '/api/session/stats',
-            'demo_questions': '/api/demo/questions'
+            'demo_questions': '/api/demo/questions',
+            'performance_metrics': '/api/performance/metrics',
+            'performance_dashboard': '/api/performance/dashboard',
+            'performance_components': '/api/performance/components',
+            'performance_api_usage': '/api/performance/api-usage',
+            'performance_cache': '/api/performance/cache',
+            'performance_alerts': '/api/performance/alerts',
+            'error_summary': '/api/errors/summary',
+            'debugging_report': '/api/errors/debugging-report',
+            'dashboard_page': '/dashboard'
         }
     })
 
@@ -700,6 +706,233 @@ def get_demo_response():
     except Exception as e:
         logger.error(f"Error getting demo response: {str(e)}")
         return jsonify({'error': 'Failed to get demo response'}), 500
+
+# Performance Monitoring API Endpoints
+
+@app.route('/api/performance/metrics', methods=['GET'])
+def get_performance_metrics():
+    """Get comprehensive performance metrics"""
+    try:
+        metrics = performance_tracker.get_performance_summary()
+        return jsonify(metrics)
+    
+    except Exception as e:
+        logger.error(f"Error getting performance metrics: {str(e)}")
+        return jsonify({'error': 'Failed to get performance metrics'}), 500
+
+@app.route('/api/performance/components', methods=['GET'])
+def get_component_performance():
+    """Get component-specific performance metrics"""
+    try:
+        metrics = performance_tracker.get_performance_summary()
+        return jsonify({
+            'component_metrics': metrics['component_metrics'],
+            'timestamp': metrics['system_metrics']['last_activity_time']
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting component performance: {str(e)}")
+        return jsonify({'error': 'Failed to get component performance'}), 500
+
+@app.route('/api/performance/api-usage', methods=['GET'])
+def get_api_usage_metrics():
+    """Get API usage and cost tracking metrics"""
+    try:
+        metrics = performance_tracker.get_performance_summary()
+        return jsonify({
+            'api_metrics': metrics['api_metrics'],
+            'total_estimated_cost': sum(
+                api_data['estimated_cost'] 
+                for api_data in metrics['api_metrics'].values()
+            ),
+            'timestamp': metrics['system_metrics']['last_activity_time']
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting API usage metrics: {str(e)}")
+        return jsonify({'error': 'Failed to get API usage metrics'}), 500
+
+@app.route('/api/performance/cache', methods=['GET'])
+def get_cache_performance():
+    """Get cache performance metrics"""
+    try:
+        metrics = performance_tracker.get_performance_summary()
+        return jsonify({
+            'cache_metrics': metrics['cache_metrics'],
+            'overall_hit_rate': sum(
+                cache_data['cache_hits'] 
+                for cache_data in metrics['cache_metrics'].values()
+            ) / max(1, sum(
+                cache_data['total_requests'] 
+                for cache_data in metrics['cache_metrics'].values()
+            )) * 100,
+            'timestamp': metrics['system_metrics']['last_activity_time']
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting cache performance: {str(e)}")
+        return jsonify({'error': 'Failed to get cache performance'}), 500
+
+@app.route('/api/performance/alerts', methods=['GET'])
+def get_performance_alerts():
+    """Get recent performance alerts"""
+    try:
+        metrics = performance_tracker.get_performance_summary()
+        return jsonify({
+            'recent_alerts': metrics['recent_alerts'],
+            'alert_count': len(metrics['recent_alerts']),
+            'timestamp': metrics['system_metrics']['last_activity_time']
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting performance alerts: {str(e)}")
+        return jsonify({'error': 'Failed to get performance alerts'}), 500
+
+@app.route('/api/performance/export', methods=['POST'])
+def export_performance_metrics():
+    """Export performance metrics to file"""
+    try:
+        data = request.get_json() or {}
+        filepath = data.get('filepath')
+        
+        performance_tracker.export_metrics_to_file(filepath)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Performance metrics exported successfully',
+            'filepath': filepath or 'logs/performance_metrics_*.json'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error exporting performance metrics: {str(e)}")
+        return jsonify({'error': 'Failed to export performance metrics'}), 500
+
+@app.route('/api/performance/reset', methods=['POST'])
+def reset_performance_metrics():
+    """Reset all performance metrics (for testing)"""
+    try:
+        performance_tracker.reset_metrics()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Performance metrics reset successfully'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error resetting performance metrics: {str(e)}")
+        return jsonify({'error': 'Failed to reset performance metrics'}), 500
+
+@app.route('/api/performance/dashboard', methods=['GET'])
+def get_performance_dashboard():
+    """Get performance dashboard data"""
+    try:
+        metrics = performance_tracker.get_performance_summary()
+        
+        # Calculate key performance indicators
+        total_calls = metrics['system_metrics']['total_calls']
+        concurrent_calls = metrics['system_metrics']['concurrent_calls']
+        uptime_hours = metrics['uptime_seconds'] / 3600
+        
+        # Component performance summary
+        component_summary = {}
+        for name, comp_metrics in metrics['component_metrics'].items():
+            component_summary[name] = {
+                'avg_response_time': comp_metrics['average_response_time'],
+                'success_rate': comp_metrics['success_rate'],
+                'total_calls': comp_metrics['total_calls']
+            }
+        
+        # API cost summary
+        total_cost = sum(
+            api_data['estimated_cost'] 
+            for api_data in metrics['api_metrics'].values()
+        )
+        
+        # Cache efficiency
+        total_cache_requests = sum(
+            cache_data['total_requests'] 
+            for cache_data in metrics['cache_metrics'].values()
+        )
+        total_cache_hits = sum(
+            cache_data['cache_hits'] 
+            for cache_data in metrics['cache_metrics'].values()
+        )
+        overall_cache_hit_rate = (total_cache_hits / max(1, total_cache_requests)) * 100
+        
+        dashboard_data = {
+            'system_overview': {
+                'total_calls': total_calls,
+                'concurrent_calls': concurrent_calls,
+                'uptime_hours': uptime_hours,
+                'system_health': 'healthy' if len(metrics['recent_alerts']) == 0 else 'warning'
+            },
+            'performance_summary': {
+                'components': component_summary,
+                'total_estimated_cost': total_cost,
+                'cache_hit_rate': overall_cache_hit_rate,
+                'recent_alerts_count': len(metrics['recent_alerts'])
+            },
+            'detailed_metrics': metrics
+        }
+        
+        return jsonify(dashboard_data)
+    
+    except Exception as e:
+        logger.error(f"Error getting performance dashboard: {str(e)}")
+        return jsonify({'error': 'Failed to get performance dashboard'}), 500
+
+@app.route('/dashboard', methods=['GET'])
+def performance_dashboard_page():
+    """Serve the performance dashboard HTML page"""
+    try:
+        return render_template('performance_dashboard.html')
+    except Exception as e:
+        logger.error(f"Error serving dashboard page: {str(e)}")
+        return f"<h1>Dashboard Error</h1><p>Could not load dashboard: {str(e)}</p>", 500
+
+# Error Tracking API Endpoints
+
+@app.route('/api/errors/summary', methods=['GET'])
+def get_error_summary():
+    """Get error summary for debugging"""
+    try:
+        hours = request.args.get('hours', 24, type=int)
+        summary = error_tracker.get_error_summary(hours)
+        return jsonify(summary)
+    
+    except Exception as e:
+        logger.error(f"Error getting error summary: {str(e)}")
+        return jsonify({'error': 'Failed to get error summary'}), 500
+
+@app.route('/api/errors/debugging-report', methods=['GET'])
+def get_debugging_report():
+    """Get comprehensive debugging report"""
+    try:
+        report = error_tracker.get_debugging_report()
+        return jsonify(report)
+    
+    except Exception as e:
+        logger.error(f"Error getting debugging report: {str(e)}")
+        return jsonify({'error': 'Failed to get debugging report'}), 500
+
+@app.route('/api/errors/export', methods=['POST'])
+def export_error_report():
+    """Export error report to file"""
+    try:
+        data = request.get_json() or {}
+        filepath = data.get('filepath')
+        
+        exported_path = error_tracker.export_error_report(filepath)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Error report exported successfully',
+            'filepath': exported_path
+        })
+    
+    except Exception as e:
+        logger.error(f"Error exporting error report: {str(e)}")
+        return jsonify({'error': 'Failed to export error report'}), 500
 
 if __name__ == '__main__':
     # Ensure logs directory exists

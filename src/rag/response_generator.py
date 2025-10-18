@@ -17,6 +17,10 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from config import Config
 
+# Add performance tracking
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils.performance_decorators import track_performance
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -169,6 +173,7 @@ class ResponseGenerator:
         
         logger.info(f"Response generator initialized with model: {self.model}")
     
+    @track_performance("OpenAI_Response_Generation", track_api_usage=True, service_name="openai_gpt", estimate_cost=True)
     def generate_response(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Generate educational response using Vidya persona

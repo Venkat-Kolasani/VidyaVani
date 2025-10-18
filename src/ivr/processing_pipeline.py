@@ -16,6 +16,7 @@ from src.audio.audio_processor import AudioProcessor, Language
 from src.rag.context_builder import ContextBuilder
 from src.rag.response_generator import ResponseGenerator
 from src.session.session_manager import ResponseData
+from src.utils.performance_decorators import track_performance, track_session_activity, PipelineTracker
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -290,6 +291,8 @@ class IVRProcessingPipeline:
                 processing_time=processing_time
             )
     
+    @track_session_activity(session_id_param='phone_number', phone_param='phone_number')
+    @track_performance("Complete_Processing_Pipeline")
     def process_question_sync(self, recording_url: str, language: str, phone_number: str) -> ProcessingResult:
         """
         Synchronously process question with enhanced error handling and fallbacks
@@ -308,116 +311,140 @@ class IVRProcessingPipeline:
         try:
             logger.info(f"Starting synchronous processing for {phone_number}")
             
-            # Step 1: Download and validate audio
-            audio_data = self._download_audio_from_url(recording_url)
-            if not audio_data:
-                return ProcessingResult(
-                    success=False,
-                    error_message="Failed to download audio recording",
-                    processing_time=time.time() - start_time
-                )
-            
-            # Step 2: Process speech to text with fallbacks
-            language_enum = self._language_str_to_enum(language)
-            stt_result = self.audio_processor.process_question_audio(audio_data, language_enum)
-            
-            if not stt_result.success:
-                # Try with noise handling fallback
-                logger.warning(f"Initial STT failed for {phone_number}, trying fallback")
-                fallback_result = self._handle_unclear_audio_fallback(audio_data, language_enum, phone_number)
-                if fallback_result.success:
-                    stt_result = fallback_result
-                else:
+            with PipelineTracker("question_processing", phone_number) as tracker:
+                # Step 1: Download and validate audio
+                tracker.start_stage("audio_download")
+                audio_data = self._download_audio_from_url(recording_url)
+                tracker.end_stage("audio_download", audio_data is not None)
+                
+                if not audio_data:
                     return ProcessingResult(
                         success=False,
-                        error_message=stt_result.error_message or "Could not understand your question clearly",
+                        error_message="Failed to download audio recording",
                         processing_time=time.time() - start_time
                     )
             
-            question_text = stt_result.content.strip()
-            logger.info(f"STT successful for {phone_number}: '{question_text[:50]}...'")
+                # Step 2: Process speech to text with fallbacks
+                tracker.start_stage("stt_processing")
+                language_enum = self._language_str_to_enum(language)
+                stt_result = self.audio_processor.process_question_audio(audio_data, language_enum)
+                
+                if not stt_result.success:
+                    # Try with noise handling fallback
+                    logger.warning(f"Initial STT failed for {phone_number}, trying fallback")
+                    fallback_result = self._handle_unclear_audio_fallback(audio_data, language_enum, phone_number)
+                    if fallback_result.success:
+                        stt_result = fallback_result
+                    else:
+                        tracker.end_stage("stt_processing", False)
+                        return ProcessingResult(
+                            success=False,
+                            error_message=stt_result.error_message or "Could not understand your question clearly",
+                            processing_time=time.time() - start_time
+                        )
+                
+                question_text = stt_result.content.strip()
+                tracker.end_stage("stt_processing", True)
+                logger.info(f"STT successful for {phone_number}: '{question_text[:50]}...'")
+                
+                # Step 3: Validate question content
+                tracker.start_stage("question_validation")
+                if not self._is_valid_question(question_text):
+                    tracker.end_stage("question_validation", False)
+                    return self._handle_invalid_question(question_text, language, phone_number, start_time)
+                tracker.end_stage("question_validation", True)
             
-            # Step 3: Validate question content
-            if not self._is_valid_question(question_text):
-                return self._handle_invalid_question(question_text, language, phone_number, start_time)
-            
-            # Step 4: Build context and generate response
-            try:
-                context = self.context_builder.build_context(
-                    question=question_text,
-                    language=language,
-                    detail_level="simple"
-                )
-                
-                response_result = self.response_generator.generate_response(context)
-                
-                if not response_result['success']:
-                    return self._handle_rag_failure(question_text, language, phone_number, start_time)
-                
-                response_text = response_result['response_text']
-                logger.info(f"Response generated for {phone_number}: {len(response_text)} characters")
-                
-            except Exception as rag_error:
-                logger.error(f"RAG processing failed for {phone_number}: {rag_error}")
-                return self._handle_rag_failure(question_text, language, phone_number, start_time)
-            
-            # Step 5: Generate detailed response (optional)
-            detailed_response_text = response_text  # Default to simple response
-            try:
-                detailed_context = self.context_builder.build_context(
-                    question=question_text,
-                    language=language,
-                    detail_level="detailed"
-                )
-                
-                detailed_result = self.response_generator.generate_response(detailed_context)
-                if detailed_result['success']:
-                    detailed_response_text = detailed_result['response_text']
+                # Step 4: Build context and generate response
+                tracker.start_stage("rag_processing")
+                try:
+                    context = self.context_builder.build_context(
+                        question=question_text,
+                        language=language,
+                        detail_level="simple"
+                    )
                     
-            except Exception as detailed_error:
-                logger.warning(f"Detailed response generation failed for {phone_number}: {detailed_error}")
-                # Continue with simple response
+                    response_result = self.response_generator.generate_response(context)
+                    
+                    if not response_result['success']:
+                        tracker.end_stage("rag_processing", False)
+                        return self._handle_rag_failure(question_text, language, phone_number, start_time)
+                    
+                    response_text = response_result['response_text']
+                    tracker.end_stage("rag_processing", True)
+                    logger.info(f"Response generated for {phone_number}: {len(response_text)} characters")
+                    
+                except Exception as rag_error:
+                    tracker.end_stage("rag_processing", False)
+                    logger.error(f"RAG processing failed for {phone_number}: {rag_error}")
+                    return self._handle_rag_failure(question_text, language, phone_number, start_time)
             
-            # Step 6: Convert responses to audio with retries
-            response_audio_result = self._generate_audio_with_retry(response_text, language_enum, phone_number)
-            if not response_audio_result.success:
+                # Step 5: Generate detailed response (optional)
+                tracker.start_stage("detailed_response")
+                detailed_response_text = response_text  # Default to simple response
+                try:
+                    detailed_context = self.context_builder.build_context(
+                        question=question_text,
+                        language=language,
+                        detail_level="detailed"
+                    )
+                    
+                    detailed_result = self.response_generator.generate_response(detailed_context)
+                    if detailed_result['success']:
+                        detailed_response_text = detailed_result['response_text']
+                        tracker.end_stage("detailed_response", True)
+                    else:
+                        tracker.end_stage("detailed_response", False)
+                        
+                except Exception as detailed_error:
+                    tracker.end_stage("detailed_response", False)
+                    logger.warning(f"Detailed response generation failed for {phone_number}: {detailed_error}")
+                    # Continue with simple response
+            
+                # Step 6: Convert responses to audio with retries
+                tracker.start_stage("tts_processing")
+                response_audio_result = self._generate_audio_with_retry(response_text, language_enum, phone_number)
+                if not response_audio_result.success:
+                    tracker.end_stage("tts_processing", False)
+                    return ProcessingResult(
+                        success=False,
+                        question_text=question_text,
+                        response_text=response_text,
+                        error_message="Failed to generate audio response",
+                        processing_time=time.time() - start_time
+                    )
+                
+                # Generate detailed audio (best effort)
+                detailed_audio_result = self._generate_audio_with_retry(detailed_response_text, language_enum, phone_number, is_detailed=True)
+                tracker.end_stage("tts_processing", True)
+            
+                # Step 7: Upload audio files for IVR access
+                tracker.start_stage("audio_upload")
+                response_audio_url = self._upload_audio_for_ivr(
+                    response_audio_result.audio_data, 
+                    f"response_{phone_number}_{int(start_time)}"
+                )
+                
+                detailed_audio_url = ""
+                if detailed_audio_result.success:
+                    detailed_audio_url = self._upload_audio_for_ivr(
+                        detailed_audio_result.audio_data,
+                        f"detailed_{phone_number}_{int(start_time)}"
+                    )
+                tracker.end_stage("audio_upload", True)
+                
+                processing_time = time.time() - start_time
+                
+                logger.info(f"Processing completed successfully in {processing_time:.2f}s for {phone_number}")
+                
                 return ProcessingResult(
-                    success=False,
+                    success=True,
                     question_text=question_text,
                     response_text=response_text,
-                    error_message="Failed to generate audio response",
-                    processing_time=time.time() - start_time
+                    response_audio_url=response_audio_url,
+                    detailed_response_text=detailed_response_text,
+                    detailed_audio_url=detailed_audio_url,
+                    processing_time=processing_time
                 )
-            
-            # Generate detailed audio (best effort)
-            detailed_audio_result = self._generate_audio_with_retry(detailed_response_text, language_enum, phone_number, is_detailed=True)
-            
-            # Step 7: Upload audio files for IVR access
-            response_audio_url = self._upload_audio_for_ivr(
-                response_audio_result.audio_data, 
-                f"response_{phone_number}_{int(start_time)}"
-            )
-            
-            detailed_audio_url = ""
-            if detailed_audio_result.success:
-                detailed_audio_url = self._upload_audio_for_ivr(
-                    detailed_audio_result.audio_data,
-                    f"detailed_{phone_number}_{int(start_time)}"
-                )
-            
-            processing_time = time.time() - start_time
-            
-            logger.info(f"Processing completed successfully in {processing_time:.2f}s for {phone_number}")
-            
-            return ProcessingResult(
-                success=True,
-                question_text=question_text,
-                response_text=response_text,
-                response_audio_url=response_audio_url,
-                detailed_response_text=detailed_response_text,
-                detailed_audio_url=detailed_audio_url,
-                processing_time=processing_time
-            )
             
         except Exception as e:
             processing_time = time.time() - start_time

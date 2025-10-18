@@ -24,6 +24,7 @@ from config import Config
 # Add src to path for utils import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.logging_config import setup_logging
+from utils.performance_decorators import track_performance, track_cache_usage
 from .language_detector import LanguageDetector
 from .language_types import Language
 
@@ -149,6 +150,7 @@ class AudioProcessor:
             }
         }
 
+    @track_performance("STT_Processing", track_api_usage=True, service_name="google_stt")
     def speech_to_text(self, audio_data: bytes, language: Language = Language.ENGLISH) -> AudioProcessingResult:
         """
         Convert speech audio to text using Google Cloud Speech-to-Text API
@@ -218,6 +220,7 @@ class AudioProcessor:
                 error_message=self.fallback_messages["processing_error"][language]
             )
 
+    @track_performance("TTS_Processing", track_api_usage=True, service_name="google_tts")
     def text_to_speech(self, text: str, language: Language = Language.ENGLISH) -> AudioProcessingResult:
         """
         Convert text to speech using Google Cloud Text-to-Speech API
@@ -287,6 +290,7 @@ class AudioProcessor:
                 error_message=f"Text-to-speech conversion failed: {str(e)}"
             )
 
+    @track_performance("Language_Detection")
     def detect_language(self, audio_data: bytes) -> Language:
         """
         Detect language from audio data by trying both supported languages
