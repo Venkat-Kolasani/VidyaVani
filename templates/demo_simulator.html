@@ -3,474 +3,472 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VidyaVani Demo Simulator</title>
+    <title>VidyaVani Phone Call Simulator</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
+        .phone-container {
+            background: #2c3e50;
+            border-radius: 30px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 100%;
+            position: relative;
         }
 
-        .header {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-            color: white;
-            padding: 30px;
+        .phone-header {
             text-align: center;
+            color: white;
+            margin-bottom: 20px;
         }
 
-        .header h1 {
+        .phone-header h1 {
             margin: 0;
-            font-size: 2.5em;
+            font-size: 1.5em;
             font-weight: 300;
         }
 
-        .header p {
-            margin: 10px 0 0 0;
-            opacity: 0.9;
-            font-size: 1.1em;
-        }
-
-        .demo-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0;
-            min-height: 600px;
-        }
-
-        .phone-simulator {
-            background: #f8f9fa;
-            padding: 30px;
-            border-right: 1px solid #e9ecef;
-        }
-
-        .processing-dashboard {
-            background: #fff;
-            padding: 30px;
-        }
-
-        .phone-interface {
-            background: #2c3e50;
-            border-radius: 20px;
-            padding: 20px;
-            color: white;
-            max-width: 300px;
-            margin: 0 auto;
+        .phone-number {
+            background: #34495e;
+            color: #4CAF50;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            border: 2px solid #4CAF50;
         }
 
         .phone-screen {
-            background: #34495e;
-            border-radius: 10px;
+            background: #1a252f;
+            border-radius: 15px;
             padding: 20px;
             margin-bottom: 20px;
             min-height: 200px;
+            border: 3px solid #34495e;
+            position: relative;
+            overflow: hidden;
         }
 
-        .menu-display {
-            font-size: 1.1em;
+        .screen-content {
+            color: #ecf0f1;
             line-height: 1.6;
-            margin-bottom: 20px;
+            font-size: 1.1em;
         }
 
-        .demo-questions {
-            margin-bottom: 20px;
-        }
-
-        .demo-questions h3 {
-            color: #4CAF50;
+        .call-status {
+            display: flex;
+            align-items: center;
             margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(52, 73, 94, 0.5);
+            border-radius: 8px;
         }
 
-        .question-btn {
-            display: block;
-            width: 100%;
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            margin: 5px 0;
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-connected { background-color: #4CAF50; }
+        .status-processing { background-color: #FF9800; }
+        .status-listening { background-color: #2196F3; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .menu-text {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid #4CAF50;
             border-radius: 5px;
-            cursor: pointer;
-            text-align: left;
-            font-size: 0.9em;
-            transition: background 0.3s;
-        }
-
-        .question-btn:hover {
-            background: #2980b9;
         }
 
         .keypad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .key {
-            background: #95a5a6;
-            border: none;
-            padding: 15px;
-            border-radius: 5px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .key:hover {
-            background: #7f8c8d;
-        }
-
-        .pipeline-container {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
+            gap: 15px;
             margin-bottom: 20px;
         }
 
-        .pipeline-step {
-            display: flex;
-            align-items: center;
-            margin: 15px 0;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            border-left: 4px solid #e9ecef;
-            transition: all 0.3s ease;
-        }
-
-        .pipeline-step.active {
-            border-left-color: #4CAF50;
-            box-shadow: 0 2px 10px rgba(76, 175, 80, 0.2);
-        }
-
-        .pipeline-step.processing {
-            border-left-color: #ff9800;
-            animation: pulse 1.5s infinite;
-        }
-
-        .pipeline-step.completed {
-            border-left-color: #4CAF50;
-            background: #f1f8e9;
-        }
-
-        .pipeline-step.error {
-            border-left-color: #f44336;
-            background: #ffebee;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
-
-        .step-icon {
-            width: 40px;
-            height: 40px;
+        .key {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            border: 2px solid #4CAF50;
+            color: white;
+            padding: 20px;
             border-radius: 50%;
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 15px;
-            font-weight: bold;
-            color: white;
+            min-height: 60px;
+            position: relative;
         }
 
-        .step-content {
-            flex: 1;
+        .key:hover {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
         }
 
-        .step-title {
-            font-weight: 600;
-            margin-bottom: 5px;
+        .key:active {
+            transform: scale(0.95);
         }
 
-        .step-details {
-            font-size: 0.9em;
-            color: #666;
+        .key-letters {
+            font-size: 0.6em;
+            position: absolute;
+            bottom: 8px;
+            color: #bdc3c7;
         }
 
-        .step-timing {
-            font-size: 0.8em;
-            color: #999;
-            margin-left: auto;
-        }
-
-        .response-display {
-            background: #e8f5e8;
-            border: 1px solid #4CAF50;
-            border-radius: 8px;
-            padding: 20px;
+        .call-controls {
+            display: flex;
+            justify-content: space-around;
             margin-top: 20px;
         }
 
-        .response-text {
+        .call-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .call-btn.start {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+
+        .call-btn.end {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+            color: white;
+        }
+
+        .call-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .demo-questions {
+            margin-top: 20px;
+            background: rgba(52, 73, 94, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .demo-questions h3 {
+            color: #4CAF50;
+            margin: 0 0 15px 0;
             font-size: 1.1em;
-            line-height: 1.6;
-            margin-bottom: 15px;
+        }
+
+        .question-btn {
+            display: block;
+            width: 100%;
+            background: rgba(33, 150, 243, 0.2);
+            color: #ecf0f1;
+            border: 1px solid #2196F3;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .question-btn:hover {
+            background: rgba(33, 150, 243, 0.4);
+            border-color: #4CAF50;
+        }
+
+        .processing-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #FF9800;
+        }
+
+        .processing-dots {
+            display: inline-block;
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .response-display {
+            display: none;
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid #4CAF50;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #ecf0f1;
         }
 
         .audio-controls {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
+            margin-top: 10px;
         }
 
         .play-btn {
             background: #4CAF50;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 5px;
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 5px;
+            font-size: 0.9em;
         }
 
         .play-btn:hover {
             background: #45a049;
         }
 
-        .controls {
-            text-align: center;
-            padding: 20px;
-            background: #f8f9fa;
-            border-top: 1px solid #e9ecef;
-        }
-
-        .control-btn {
-            background: #2196F3;
+        .call-flow-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            border: none;
-            padding: 12px 24px;
-            margin: 0 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: background 0.3s;
-        }
-
-        .control-btn:hover {
-            background: #1976D2;
-        }
-
-        .control-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .metrics-display {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .metric-card {
-            background: white;
             padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #e9ecef;
-        }
-
-        .metric-value {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #4CAF50;
-        }
-
-        .metric-label {
+            border-radius: 10px;
+            max-width: 300px;
             font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
         }
 
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
+        .flow-step {
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        .status-ready { background-color: #4CAF50; }
-        .status-processing { background-color: #ff9800; }
-        .status-error { background-color: #f44336; }
+        .flow-step.active {
+            color: #4CAF50;
+            font-weight: bold;
+        }
 
         @media (max-width: 768px) {
-            .demo-grid {
-                grid-template-columns: 1fr;
+            .call-flow-info {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin: 20px 0;
             }
             
-            .phone-simulator {
-                border-right: none;
-                border-bottom: 1px solid #e9ecef;
+            body {
+                padding: 10px;
             }
+        }
+
+        .dtmf-feedback {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 2em;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .dtmf-feedback.show {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📞 VidyaVani Demo Simulator</h1>
-            <p>Interactive demonstration of AI-powered IVR learning system</p>
+    <!-- Call Flow Information Panel -->
+    <div class="call-flow-info">
+        <h3>📞 IVR Call Flow</h3>
+        <div class="flow-step" id="step-1">1. Dial VidyaVani Number</div>
+        <div class="flow-step" id="step-2">2. Welcome Message</div>
+        <div class="flow-step" id="step-3">3. Language Selection (1/2)</div>
+        <div class="flow-step" id="step-4">4. Grade Confirmation</div>
+        <div class="flow-step" id="step-5">5. Interaction Mode</div>
+        <div class="flow-step" id="step-6">6. Ask Question</div>
+        <div class="flow-step" id="step-7">7. AI Processing</div>
+        <div class="flow-step" id="step-8">8. Response Delivery</div>
+        <div class="flow-step" id="step-9">9. Follow-up Menu</div>
+    </div>
+
+    <div class="phone-container">
+        <div class="phone-header">
+            <h1>📱 VidyaVani IVR Simulator</h1>
         </div>
 
-        <div class="demo-grid">
-            <!-- Phone Simulator Side -->
-            <div class="phone-simulator">
-                <div class="phone-interface">
-                    <div class="phone-screen">
-                        <div class="menu-display" id="menu-display">
-                            <div><span class="status-indicator status-ready"></span>System Ready</div>
-                            <div style="margin-top: 15px;">
-                                <strong>VidyaVani Learning System</strong><br>
-                                Press 1 for English<br>
-                                Press 2 for Telugu<br>
-                                Or select a demo question below
-                            </div>
-                        </div>
-                    </div>
+        <div class="phone-number">
+            📞 +91-XXXX-VIDYA (84392)
+        </div>
 
-                    <div class="demo-questions">
-                        <h3>📚 Demo Questions</h3>
-                        <div id="question-list">
-                            <!-- Questions will be loaded here -->
-                        </div>
-                    </div>
+        <div class="phone-screen">
+            <div class="call-status">
+                <div class="status-indicator status-connected" id="call-status-indicator"></div>
+                <span id="call-status-text">Ready to Call</span>
+            </div>
 
-                    <div class="keypad">
-                        <button class="key" onclick="pressKey('1')">1</button>
-                        <button class="key" onclick="pressKey('2')">2</button>
-                        <button class="key" onclick="pressKey('3')">3</button>
-                        <button class="key" onclick="pressKey('4')">4</button>
-                        <button class="key" onclick="pressKey('5')">5</button>
-                        <button class="key" onclick="pressKey('6')">6</button>
-                        <button class="key" onclick="pressKey('7')">7</button>
-                        <button class="key" onclick="pressKey('8')">8</button>
-                        <button class="key" onclick="pressKey('9')">9</button>
-                        <button class="key" onclick="pressKey('*')">*</button>
-                        <button class="key" onclick="pressKey('0')">0</button>
-                        <button class="key" onclick="pressKey('#')">#</button>
-                    </div>
+            <div class="screen-content" id="screen-content">
+                <div class="menu-text">
+                    <strong>Welcome to VidyaVani!</strong><br>
+                    Your AI-powered learning assistant for Class 10 Science.<br><br>
+                    Press the <strong>📞 CALL</strong> button to start your learning session.
                 </div>
             </div>
 
-            <!-- Processing Dashboard Side -->
-            <div class="processing-dashboard">
-                <h2>🔄 Processing Pipeline</h2>
-                
-                <div class="pipeline-container">
-                    <div class="pipeline-step" id="step-input">
-                        <div class="step-icon" style="background: #3498db;">🎤</div>
-                        <div class="step-content">
-                            <div class="step-title">Voice Input</div>
-                            <div class="step-details">Waiting for question...</div>
-                        </div>
-                        <div class="step-timing">-</div>
-                    </div>
+            <div class="processing-indicator" id="processing-indicator">
+                <div>🤖 AI Processing your question</div>
+                <div class="processing-dots">...</div>
+            </div>
 
-                    <div class="pipeline-step" id="step-stt">
-                        <div class="step-icon" style="background: #00BCD4;">🔤</div>
-                        <div class="step-content">
-                            <div class="step-title">Speech-to-Text</div>
-                            <div class="step-details">Google Cloud STT processing</div>
-                        </div>
-                        <div class="step-timing">-</div>
-                    </div>
-
-                    <div class="pipeline-step" id="step-rag">
-                        <div class="step-icon" style="background: #FF9800;">🧠</div>
-                        <div class="step-content">
-                            <div class="step-title">RAG Engine</div>
-                            <div class="step-details">NCERT content retrieval + GPT-5-nano</div>
-                        </div>
-                        <div class="step-timing">-</div>
-                    </div>
-
-                    <div class="pipeline-step" id="step-tts">
-                        <div class="step-icon" style="background: #27ae60;">🔊</div>
-                        <div class="step-content">
-                            <div class="step-title">Text-to-Speech</div>
-                            <div class="step-details">Google Cloud TTS generation</div>
-                        </div>
-                        <div class="step-timing">-</div>
-                    </div>
-
-                    <div class="pipeline-step" id="step-delivery">
-                        <div class="step-icon" style="background: #2c3e50;">📞</div>
-                        <div class="step-content">
-                            <div class="step-title">Response Delivery</div>
-                            <div class="step-details">Audio playback via Exotel</div>
-                        </div>
-                        <div class="step-timing">-</div>
-                    </div>
+            <div class="response-display" id="response-display">
+                <div id="response-text"></div>
+                <div class="audio-controls">
+                    <button class="play-btn" onclick="playResponse()">
+                        🔊 Play Response
+                    </button>
                 </div>
+            </div>
 
-                <div class="metrics-display">
-                    <div class="metric-card">
-                        <div class="metric-value" id="total-time">-</div>
-                        <div class="metric-label">Total Time (s)</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="stt-time">-</div>
-                        <div class="metric-label">STT Time (s)</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="rag-time">-</div>
-                        <div class="metric-label">RAG Time (s)</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value" id="tts-time">-</div>
-                        <div class="metric-label">TTS Time (s)</div>
-                    </div>
-                </div>
+            <!-- DTMF Feedback -->
+            <div class="dtmf-feedback" id="dtmf-feedback"></div>
+        </div>
 
-                <div class="response-display" id="response-display" style="display: none;">
-                    <div class="response-text" id="response-text"></div>
-                    <div class="audio-controls">
-                        <button class="play-btn" onclick="playResponse()">
-                            ▶️ Play Response
-                        </button>
-                        <span id="audio-status">Ready to play</span>
-                    </div>
-                </div>
+        <!-- Phone Keypad -->
+        <div class="keypad">
+            <div class="key" onclick="pressKey('1')">
+                1
+                <div class="key-letters"></div>
+            </div>
+            <div class="key" onclick="pressKey('2')">
+                2
+                <div class="key-letters">ABC</div>
+            </div>
+            <div class="key" onclick="pressKey('3')">
+                3
+                <div class="key-letters">DEF</div>
+            </div>
+            <div class="key" onclick="pressKey('4')">
+                4
+                <div class="key-letters">GHI</div>
+            </div>
+            <div class="key" onclick="pressKey('5')">
+                5
+                <div class="key-letters">JKL</div>
+            </div>
+            <div class="key" onclick="pressKey('6')">
+                6
+                <div class="key-letters">MNO</div>
+            </div>
+            <div class="key" onclick="pressKey('7')">
+                7
+                <div class="key-letters">PQRS</div>
+            </div>
+            <div class="key" onclick="pressKey('8')">
+                8
+                <div class="key-letters">TUV</div>
+            </div>
+            <div class="key" onclick="pressKey('9')">
+                9
+                <div class="key-letters">WXYZ</div>
+            </div>
+            <div class="key" onclick="pressKey('*')">
+                *
+            </div>
+            <div class="key" onclick="pressKey('0')">
+                0
+                <div class="key-letters">+</div>
+            </div>
+            <div class="key" onclick="pressKey('#')">
+                #
             </div>
         </div>
 
-        <div class="controls">
-            <button class="control-btn" onclick="resetDemo()">🔄 Reset Demo</button>
-            <button class="control-btn" onclick="startRecording()" id="record-btn">🎤 Start Recording</button>
-            <button class="control-btn" onclick="exportResults()">📊 Export Results</button>
-            <button class="control-btn" onclick="toggleFullscreen()">🖥️ Fullscreen</button>
+        <!-- Call Control Buttons -->
+        <div class="call-controls">
+            <button class="call-btn start" onclick="startCall()" id="start-call-btn">
+                📞
+            </button>
+            <button class="call-btn end" onclick="endCall()" id="end-call-btn" style="display: none;">
+                📵
+            </button>
+        </div>
+
+        <!-- Demo Questions (shown during question recording phase) -->
+        <div class="demo-questions" id="demo-questions" style="display: none;">
+            <h3>🎯 Quick Demo Questions</h3>
+            <div id="question-list">
+                <!-- Questions will be loaded here -->
+            </div>
         </div>
     </div>
 
     <script>
+        let callActive = false;
+        let currentStep = 0;
         let currentLanguage = 'english';
         let isProcessing = false;
-        let processingStartTime = null;
-        let stepTimings = {};
         let currentResponse = null;
 
-        // Initialize demo
+        // IVR Flow Steps
+        const flowSteps = [
+            'idle',
+            'welcome',
+            'language_selection',
+            'grade_confirmation', 
+            'interaction_mode',
+            'topic_browsing',
+            'question_recording',
+            'processing',
+            'response_delivery',
+            'follow_up'
+        ];
+
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             loadDemoQuestions();
-            resetPipeline();
+            updateFlowStep(0);
         });
 
         async function loadDemoQuestions() {
@@ -481,7 +479,8 @@
                 const questionList = document.getElementById('question-list');
                 questionList.innerHTML = '';
                 
-                data.demo_questions.forEach((question, index) => {
+                // Show first 8 questions for demo
+                data.demo_questions.slice(0, 8).forEach((question, index) => {
                     const btn = document.createElement('button');
                     btn.className = 'question-btn';
                     btn.textContent = `${index + 1}. ${question}`;
@@ -489,79 +488,385 @@
                     questionList.appendChild(btn);
                 });
                 
-                console.log(`Loaded ${data.demo_questions.length} demo questions`);
             } catch (error) {
                 console.error('Failed to load demo questions:', error);
-                document.getElementById('question-list').innerHTML = 
-                    '<div style="color: #f44336;">Failed to load questions</div>';
             }
         }
 
+        function startCall() {
+            if (callActive) return;
+            
+            callActive = true;
+            document.getElementById('start-call-btn').style.display = 'none';
+            document.getElementById('end-call-btn').style.display = 'block';
+            
+            updateCallStatus('status-connected', 'Call Connected');
+            updateFlowStep(1);
+            
+            // Simulate call connection delay
+            setTimeout(() => {
+                playWelcomeMessage();
+            }, 1000);
+        }
+
+        function endCall() {
+            if (!callActive) return;
+            
+            callActive = false;
+            currentStep = 0;
+            isProcessing = false;
+            
+            document.getElementById('start-call-btn').style.display = 'block';
+            document.getElementById('end-call-btn').style.display = 'none';
+            document.getElementById('demo-questions').style.display = 'none';
+            document.getElementById('response-display').style.display = 'none';
+            document.getElementById('processing-indicator').style.display = 'none';
+            
+            updateCallStatus('status-connected', 'Call Ended');
+            updateFlowStep(0);
+            
+            setTimeout(() => {
+                updateCallStatus('status-connected', 'Ready to Call');
+                updateScreenContent(`
+                    <div class="menu-text">
+                        <strong>Welcome to VidyaVani!</strong><br>
+                        Your AI-powered learning assistant for Class 10 Science.<br><br>
+                        Press the <strong>📞 CALL</strong> button to start your learning session.
+                    </div>
+                `);
+            }, 2000);
+        }
+
+        function playWelcomeMessage() {
+            updateScreenContent(`
+                <div class="menu-text">
+                    🎵 <strong>Welcome to VidyaVani!</strong><br><br>
+                    Your AI-powered learning assistant for Class 10 Science.<br><br>
+                    Press <strong>1</strong> for English<br>
+                    Press <strong>2</strong> for Telugu
+                </div>
+            `);
+            updateFlowStep(2);
+        }
+
         function pressKey(key) {
-            if (isProcessing) return;
+            if (!callActive) return;
             
-            const menuDisplay = document.getElementById('menu-display');
+            // Show DTMF feedback
+            showDTMFFeedback(key);
             
+            // Handle based on current step
+            switch(flowSteps[currentStep]) {
+                case 'language_selection':
+                    handleLanguageSelection(key);
+                    break;
+                case 'grade_confirmation':
+                    handleGradeConfirmation(key);
+                    break;
+                case 'interaction_mode':
+                    handleInteractionMode(key);
+                    break;
+                case 'follow_up':
+                    handleFollowUp(key);
+                    break;
+                case 'topic_browsing':
+                    handleTopicBrowsing(key);
+                    break;
+                default:
+                    if (currentStep === 1) {
+                        // Still in welcome, treat as language selection
+                        handleLanguageSelection(key);
+                    }
+            }
+        }
+
+        function showDTMFFeedback(key) {
+            const feedback = document.getElementById('dtmf-feedback');
+            feedback.textContent = key;
+            feedback.classList.add('show');
+            
+            setTimeout(() => {
+                feedback.classList.remove('show');
+            }, 500);
+        }
+
+        function handleLanguageSelection(key) {
             if (key === '1') {
                 currentLanguage = 'english';
-                menuDisplay.innerHTML = `
-                    <div><span class="status-indicator status-ready"></span>English Selected</div>
-                    <div style="margin-top: 15px;">
-                        <strong>Class 10 Science</strong><br>
-                        Press 1 to browse topics<br>
-                        Press 2 to ask question<br>
-                        Or select demo question below
+                updateScreenContent(`
+                    <div class="menu-text">
+                        ✅ <strong>English Selected</strong><br><br>
+                        You are calling for <strong>Class 10 Science</strong> learning assistance.<br><br>
+                        Press <strong>1</strong> to confirm<br>
+                        Press <strong>2</strong> to change grade
                     </div>
-                `;
+                `);
+                updateFlowStep(3);
             } else if (key === '2') {
                 currentLanguage = 'telugu';
-                menuDisplay.innerHTML = `
-                    <div><span class="status-indicator status-ready"></span>Telugu Selected</div>
-                    <div style="margin-top: 15px;">
-                        <strong>క్లాస్ 10 సైన్స్</strong><br>
-                        1 - విषయాలు చూడండి<br>
-                        2 - ప్రశ్న అడగండి<br>
-                        లేదా డెమో ప్రశ్న ఎంచుకోండి
+                updateScreenContent(`
+                    <div class="menu-text">
+                        ✅ <strong>Telugu Selected</strong><br><br>
+                        మీరు <strong>క్లాస్ 10 సైన్స్</strong> సహాయం కోసం కాల్ చేస్తున్నారు.<br><br>
+                        నిర్ధారించడానికి <strong>1</strong> నొక్కండి<br>
+                        గ్రేడ్ మార్చడానికి <strong>2</strong> నొక్కండి
                     </div>
-                `;
+                `);
+                updateFlowStep(3);
+            }
+        }
+
+        function handleGradeConfirmation(key) {
+            if (key === '1') {
+                const message = currentLanguage === 'english' ? 
+                    `<div class="menu-text">
+                        📚 <strong>Class 10 Science Confirmed</strong><br><br>
+                        How would you like to interact?<br><br>
+                        Press <strong>1</strong> to browse topics<br>
+                        Press <strong>2</strong> to ask a question directly
+                    </div>` :
+                    `<div class="menu-text">
+                        📚 <strong>క్లాస్ 10 సైన్స్ నిర్ధారించబడింది</strong><br><br>
+                        మీరు ఎలా సంభాషించాలనుకుంటున్నారు?<br><br>
+                        విषయాలు చూడటానికి <strong>1</strong> నొక్కండి<br>
+                        ప్రత్యక్షంగా ప్రశ్న అడగడానికి <strong>2</strong> నొక్కండి
+                    </div>`;
+                
+                updateScreenContent(message);
+                updateFlowStep(4);
+            }
+        }
+
+        function handleInteractionMode(key) {
+            if (key === '1') {
+                // Browse topics mode
+                const message = currentLanguage === 'english' ?
+                    `<div class="menu-text">
+                        📚 <strong>Browse Topics Selected</strong><br><br>
+                        <strong>Class 10 Science Topics:</strong><br><br>
+                        Press <strong>1</strong> for Physics (Light, Electricity)<br>
+                        Press <strong>2</strong> for Chemistry (Acids, Bases, Metals)<br>
+                        Press <strong>3</strong> for Biology (Life Processes)<br>
+                        Press <strong>9</strong> to ask a direct question<br>
+                        Press <strong>0</strong> for main menu
+                    </div>` :
+                    `<div class="menu-text">
+                        📚 <strong>విషయాలు చూడటం ఎంచుకోబడింది</strong><br><br>
+                        <strong>క్లాస్ 10 సైన్స్ విషయాలు:</strong><br><br>
+                        భౌతిక శాస్త్రం కోసం <strong>1</strong> నొక్కండి<br>
+                        రసాయన శాస్త్రం కోసం <strong>2</strong> నొక్కండి<br>
+                        జీవ శాస్త్రం కోసం <strong>3</strong> నొక్కండి<br>
+                        ప్రత్యక్ష ప్రశ్న కోసం <strong>9</strong> నొక్కండి<br>
+                        మెయిన్ మెనూ కోసం <strong>0</strong> నొక్కండి
+                    </div>`;
+                
+                updateScreenContent(message);
+                updateCallStatus('status-connected', 'Browsing Topics');
+                currentStep = 5; // Set to topic browsing step
+                
+            } else if (key === '2') {
+                const message = currentLanguage === 'english' ?
+                    `<div class="menu-text">
+                        🎤 <strong>Question Mode Selected</strong><br><br>
+                        Please ask your Class 10 Science question clearly.<br><br>
+                        You can use the demo questions below or speak your question.
+                    </div>` :
+                    `<div class="menu-text">
+                        🎤 <strong>ప్రశ్న మోడ్ ఎంచుకోబడింది</strong><br><br>
+                        దయచేసి మీ క్లాస్ 10 సైన్స్ ప్రశ్నను స్పష్టంగా అడగండి.<br><br>
+                        మీరు క్రింది డెమో ప్రశ్నలను ఉపయోగించవచ్చు లేదా మీ ప్రశ్నను చెప్పవచ్చు.
+                    </div>`;
+                
+                updateScreenContent(message);
+                updateCallStatus('status-listening', 'Listening for Question');
+                currentStep = 6; // Move to question recording step
+                
+                // Show demo questions
+                document.getElementById('demo-questions').style.display = 'block';
+            }
+        }
+
+        function handleTopicBrowsing(key) {
+            if (key === '1') {
+                // Physics topics
+                const message = currentLanguage === 'english' ?
+                    `<div class="menu-text">
+                        ⚡ <strong>Physics Topics</strong><br><br>
+                        <strong>Available Topics:</strong><br>
+                        • Light - Reflection and Refraction<br>
+                        • Electricity and Magnetism<br>
+                        • Current and Circuits<br><br>
+                        Press <strong>1</strong> to ask about Light<br>
+                        Press <strong>2</strong> to ask about Electricity<br>
+                        Press <strong>9</strong> for direct question<br>
+                        Press <strong>0</strong> to go back
+                    </div>` :
+                    `<div class="menu-text">
+                        ⚡ <strong>భౌతిక శాస్త్ర విషయాలు</strong><br><br>
+                        <strong>అందుబాటులో ఉన్న విషయాలు:</strong><br>
+                        • కాంతి - ప్రతిబింబం మరియు వక్రీభవనం<br>
+                        • విద్యుత్ మరియు అయస్కాంతత్వం<br>
+                        • కరెంట్ మరియు సర్క్యూట్లు<br><br>
+                        కాంతి గురించి అడగడానికి <strong>1</strong> నొక్కండి<br>
+                        విద్యుత్ గురించి అడగడానికి <strong>2</strong> నొక్కండి<br>
+                        ప్రత్యక్ష ప్రశ్న కోసం <strong>9</strong> నొక్కండి<br>
+                        వెనుకకు వెళ్లడానికి <strong>0</strong> నొక్కండి
+                    </div>`;
+                
+                updateScreenContent(message);
+                
+            } else if (key === '2') {
+                // Chemistry topics
+                const message = currentLanguage === 'english' ?
+                    `<div class="menu-text">
+                        🧪 <strong>Chemistry Topics</strong><br><br>
+                        <strong>Available Topics:</strong><br>
+                        • Acids, Bases and Salts<br>
+                        • Metals and Non-metals<br>
+                        • Chemical Reactions<br><br>
+                        Press <strong>1</strong> to ask about Acids & Bases<br>
+                        Press <strong>2</strong> to ask about Metals<br>
+                        Press <strong>9</strong> for direct question<br>
+                        Press <strong>0</strong> to go back
+                    </div>` :
+                    `<div class="menu-text">
+                        🧪 <strong>రసాయన శాస్त్ర విషయాలు</strong><br><br>
+                        <strong>అందుబాటులో ఉన్న విషయాలు:</strong><br>
+                        • ఆమ్లాలు, క్షారాలు మరియు లవణాలు<br>
+                        • లోహాలు మరియు అలోహాలు<br>
+                        • రసాయన చర్యలు<br><br>
+                        ఆమ్లాలు & క్షారాలు గురించి <strong>1</strong> నొక్కండి<br>
+                        లోహాలు గురించి <strong>2</strong> నొక్కండి<br>
+                        ప్రత్యక్ష ప్రశ్న కోసం <strong>9</strong> నొక్కండి<br>
+                        వెనుకకు వెళ్లడానికి <strong>0</strong> నొక్కండి
+                    </div>`;
+                
+                updateScreenContent(message);
+                
+            } else if (key === '3') {
+                // Biology topics
+                const message = currentLanguage === 'english' ?
+                    `<div class="menu-text">
+                        🌱 <strong>Biology Topics</strong><br><br>
+                        <strong>Available Topics:</strong><br>
+                        • Life Processes (Nutrition, Respiration)<br>
+                        • Control and Coordination<br>
+                        • Reproduction and Heredity<br><br>
+                        Press <strong>1</strong> to ask about Life Processes<br>
+                        Press <strong>2</strong> to ask about Control Systems<br>
+                        Press <strong>9</strong> for direct question<br>
+                        Press <strong>0</strong> to go back
+                    </div>` :
+                    `<div class="menu-text">
+                        🌱 <strong>జీవ శాస్త్ర విషయాలు</strong><br><br>
+                        <strong>అందుబాటులో ఉన్న విషయాలు:</strong><br>
+                        • జీవ ప్రక్రియలు (పోషణ, శ్వాస)<br>
+                        • నియంత్రణ మరియు సమన్వయం<br>
+                        • పునరుత్పత్తి మరియు వంశపారంపర్యత<br><br>
+                        జీవ ప్రక్రియలు గురించి <strong>1</strong> నొక్కండి<br>
+                        నియంత్రణ వ్యవస్థలు గురించి <strong>2</strong> నొక్కండి<br>
+                        ప్రత్యక్ష ప్రశ్న కోసం <strong>9</strong> నొక్కండి<br>
+                        వెనుకకు వెళ్లడానికి <strong>0</strong> నొక్కండి
+                    </div>`;
+                
+                updateScreenContent(message);
+                
+            } else if (key === '9') {
+                // Switch to direct question mode
+                const message = currentLanguage === 'english' ?
+                    `<div class="menu-text">
+                        🎤 <strong>Direct Question Mode</strong><br><br>
+                        Please ask your Class 10 Science question clearly.<br><br>
+                        You can use the demo questions below or speak your question.
+                    </div>` :
+                    `<div class="menu-text">
+                        🎤 <strong>ప్రత్యక్ష ప్రశ్న మోడ్</strong><br><br>
+                        దయచేసి మీ క్లాస్ 10 సైన్స్ ప్రశ్నను స్పష్టంగా అడగండి.<br><br>
+                        మీరు క్రింది డెమో ప్రశ్నలను ఉపయోగించవచ్చు లేదా మీ ప్రశ్నను చెప్పవచ్చు.
+                    </div>`;
+                
+                updateScreenContent(message);
+                updateCallStatus('status-listening', 'Listening for Question');
+                currentStep = 6; // Move to question recording
+                
+                // Show demo questions
+                document.getElementById('demo-questions').style.display = 'block';
+                
+            } else if (key === '0') {
+                // Go back to interaction mode
+                const message = currentLanguage === 'english' ? 
+                    `<div class="menu-text">
+                        📚 <strong>Class 10 Science Confirmed</strong><br><br>
+                        How would you like to interact?<br><br>
+                        Press <strong>1</strong> to browse topics<br>
+                        Press <strong>2</strong> to ask a question directly
+                    </div>` :
+                    `<div class="menu-text">
+                        📚 <strong>క్లాస్ 10 సైన్స్ నిర్ధారించబడింది</strong><br><br>
+                        మీరు ఎలా సంభాషించాలనుకుంటున్నారు?<br><br>
+                        విషయాలు చూడటానికి <strong>1</strong> నొక్కండి<br>
+                        ప్రత్యక్షంగా ప్రశ్న అడగడానికి <strong>2</strong> నొక్కండి
+                    </div>`;
+                
+                updateScreenContent(message);
+                updateCallStatus('status-connected', 'Interaction Mode');
+                currentStep = 4; // Back to interaction mode
+            }
+        }
+
+        function handleFollowUp(key) {
+            if (key === '1') {
+                // Ask another question
+                const message = currentLanguage === 'english' ?
+                    `<div class="menu-text">
+                        🎤 <strong>Ready for Next Question</strong><br><br>
+                        Please ask your next Class 10 Science question.
+                    </div>` :
+                    `<div class="menu-text">
+                        🎤 <strong>తదుపరి ప్రశ్నకు సిద్ధం</strong><br><br>
+                        దయచేసి మీ తదుపరి క్లాస్ 10 సైన్స్ ప్రశ్నను అడగండి.
+                    </div>`;
+                
+                updateScreenContent(message);
+                updateCallStatus('status-listening', 'Listening for Question');
+                currentStep = 6; // Back to question recording
+                document.getElementById('demo-questions').style.display = 'block';
+                document.getElementById('response-display').style.display = 'none';
+                
+            } else if (key === '9') {
+                // Main menu
+                playWelcomeMessage();
+            } else if (key === '0') {
+                // End call
+                endCall();
             }
         }
 
         async function askDemoQuestion(question) {
-            if (isProcessing) return;
+            if (!callActive || isProcessing) return;
             
             isProcessing = true;
-            processingStartTime = Date.now();
+            document.getElementById('demo-questions').style.display = 'none';
             
-            // Update menu display
-            const menuDisplay = document.getElementById('menu-display');
-            menuDisplay.innerHTML = `
-                <div><span class="status-indicator status-processing"></span>Processing Question</div>
-                <div style="margin-top: 15px;">
-                    <strong>Question:</strong><br>
-                    "${question}"
+            // Show processing
+            updateCallStatus('status-processing', 'AI Processing Question');
+            updateFlowStep(7);
+            
+            updateScreenContent(`
+                <div class="menu-text">
+                    <strong>Question Received:</strong><br>
+                    "${question}"<br><br>
+                    🤖 AI is processing your question...
                 </div>
-            `;
+            `);
             
-            // Start pipeline animation
-            await simulateProcessingPipeline(question);
-        }
-
-        async function simulateProcessingPipeline(question) {
+            document.getElementById('processing-indicator').style.display = 'block';
+            
             try {
-                // Step 1: Voice Input (simulated)
-                await updatePipelineStep('step-input', 'processing', 'Receiving question...', 0.5);
-                await sleep(500);
-                await updatePipelineStep('step-input', 'completed', `Question received: "${question.substring(0, 30)}..."`, 0.5);
+                // Simulate processing time
+                await sleep(2000);
                 
-                // Step 2: Speech-to-Text (simulated)
-                await updatePipelineStep('step-stt', 'processing', 'Converting speech to text...', null);
-                await sleep(1200);
-                await updatePipelineStep('step-stt', 'completed', 'Text conversion complete', 1.2);
-                
-                // Step 3: RAG Engine (get actual cached response)
-                await updatePipelineStep('step-rag', 'processing', 'Searching NCERT content...', null);
-                
+                // Get cached response
                 const response = await fetch('/api/demo/response', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -569,182 +874,128 @@
                 });
                 
                 const responseData = await response.json();
-                await sleep(800);
                 
                 if (responseData.response) {
-                    await updatePipelineStep('step-rag', 'completed', 'Response generated successfully', 2.1);
                     currentResponse = responseData.response;
+                    showResponse(question, responseData.response);
                 } else {
-                    await updatePipelineStep('step-rag', 'error', 'No cached response found', 2.1);
-                    currentResponse = "I don't have information about that topic. Please try another question.";
+                    showError("Sorry, I don't have information about that topic. Please try another question.");
                 }
                 
-                // Step 4: Text-to-Speech (simulated)
-                await updatePipelineStep('step-tts', 'processing', 'Generating audio response...', null);
-                await sleep(1000);
-                await updatePipelineStep('step-tts', 'completed', 'Audio generation complete', 1.0);
-                
-                // Step 5: Response Delivery
-                await updatePipelineStep('step-delivery', 'processing', 'Delivering response...', null);
-                await sleep(300);
-                await updatePipelineStep('step-delivery', 'completed', 'Response delivered', 0.3);
-                
-                // Show final response
-                showResponse(currentResponse);
-                updateMetrics();
-                
             } catch (error) {
-                console.error('Pipeline error:', error);
-                await updatePipelineStep('step-rag', 'error', 'Processing failed', null);
+                console.error('Error processing question:', error);
+                showError("There was an error processing your question. Please try again.");
             }
             
             isProcessing = false;
+            document.getElementById('processing-indicator').style.display = 'none';
         }
 
-        async function updatePipelineStep(stepId, status, details, timing) {
-            const step = document.getElementById(stepId);
-            const stepDetails = step.querySelector('.step-details');
-            const stepTiming = step.querySelector('.step-timing');
+        function showResponse(question, response) {
+            updateCallStatus('status-connected', 'Response Ready');
+            updateFlowStep(8);
             
-            // Remove all status classes
-            step.classList.remove('active', 'processing', 'completed', 'error');
-            
-            // Add new status
-            step.classList.add(status);
-            stepDetails.textContent = details;
-            
-            if (timing !== null) {
-                stepTiming.textContent = `${timing}s`;
-                stepTimings[stepId] = timing;
-            }
-        }
-
-        function showResponse(responseText) {
-            const responseDisplay = document.getElementById('response-display');
-            const responseTextEl = document.getElementById('response-text');
-            
-            responseTextEl.textContent = responseText;
-            responseDisplay.style.display = 'block';
-            
-            // Update menu display
-            const menuDisplay = document.getElementById('menu-display');
-            menuDisplay.innerHTML = `
-                <div><span class="status-indicator status-ready"></span>Response Ready</div>
-                <div style="margin-top: 15px;">
-                    Press 1 for detailed explanation<br>
-                    Press 2 for new question<br>
-                    Press 9 for main menu
+            updateScreenContent(`
+                <div class="menu-text">
+                    <strong>Q:</strong> ${question}<br><br>
+                    <strong>🤖 VidyaVani AI Response:</strong><br>
+                    ${response}
                 </div>
-            `;
+            `);
+            
+            document.getElementById('response-text').textContent = response;
+            document.getElementById('response-display').style.display = 'block';
+            
+            // Show follow-up menu after a delay
+            setTimeout(() => {
+                showFollowUpMenu();
+            }, 3000);
         }
 
-        function updateMetrics() {
-            const totalTime = (Date.now() - processingStartTime) / 1000;
+        function showFollowUpMenu() {
+            updateFlowStep(9);
             
-            document.getElementById('total-time').textContent = totalTime.toFixed(1);
-            document.getElementById('stt-time').textContent = (stepTimings['step-stt'] || 0).toFixed(1);
-            document.getElementById('rag-time').textContent = (stepTimings['step-rag'] || 0).toFixed(1);
-            document.getElementById('tts-time').textContent = (stepTimings['step-tts'] || 0).toFixed(1);
+            const message = currentLanguage === 'english' ?
+                `<div class="menu-text">
+                    <strong>What would you like to do next?</strong><br><br>
+                    Press <strong>1</strong> to ask another question<br>
+                    Press <strong>9</strong> for main menu<br>
+                    Press <strong>0</strong> to end call
+                </div>` :
+                `<div class="menu-text">
+                    <strong>మీరు తర్వాత ఏమి చేయాలనుకుంటున్నారు?</strong><br><br>
+                    మరో ప్రశ్న అడగడానికి <strong>1</strong> నొక్కండి<br>
+                    మెయిన్ మెనూకి <strong>9</strong> నొక్కండి<br>
+                    కాల్ ముగించడానికి <strong>0</strong> నొక్కండి
+                </div>`;
+            
+            updateScreenContent(message);
+        }
+
+        function showError(message) {
+            updateCallStatus('status-connected', 'Error Occurred');
+            
+            updateScreenContent(`
+                <div class="menu-text" style="border-left-color: #f44336; background: rgba(244, 67, 54, 0.1);">
+                    ❌ <strong>Error:</strong><br>
+                    ${message}<br><br>
+                    Press <strong>1</strong> to try again<br>
+                    Press <strong>9</strong> for main menu
+                </div>
+            `);
         }
 
         function playResponse() {
             if (!currentResponse) return;
             
-            // Simulate audio playback
-            const audioStatus = document.getElementById('audio-status');
-            audioStatus.textContent = 'Playing...';
-            
             // Use speech synthesis for demo
             const utterance = new SpeechSynthesisUtterance(currentResponse);
             utterance.rate = 0.9;
             utterance.pitch = 1.0;
-            
-            utterance.onend = () => {
-                audioStatus.textContent = 'Playback complete';
-            };
+            utterance.lang = currentLanguage === 'telugu' ? 'te-IN' : 'en-IN';
             
             speechSynthesis.speak(utterance);
         }
 
-        function resetDemo() {
-            isProcessing = false;
-            currentResponse = null;
-            stepTimings = {};
+        function updateCallStatus(statusClass, statusText) {
+            const indicator = document.getElementById('call-status-indicator');
+            const text = document.getElementById('call-status-text');
             
-            resetPipeline();
-            
-            const menuDisplay = document.getElementById('menu-display');
-            menuDisplay.innerHTML = `
-                <div><span class="status-indicator status-ready"></span>System Ready</div>
-                <div style="margin-top: 15px;">
-                    <strong>VidyaVani Learning System</strong><br>
-                    Press 1 for English<br>
-                    Press 2 for Telugu<br>
-                    Or select a demo question below
-                </div>
-            `;
-            
-            document.getElementById('response-display').style.display = 'none';
-            
-            // Reset metrics
-            document.getElementById('total-time').textContent = '-';
-            document.getElementById('stt-time').textContent = '-';
-            document.getElementById('rag-time').textContent = '-';
-            document.getElementById('tts-time').textContent = '-';
+            indicator.className = `status-indicator ${statusClass}`;
+            text.textContent = statusText;
         }
 
-        function resetPipeline() {
-            const steps = ['step-input', 'step-stt', 'step-rag', 'step-tts', 'step-delivery'];
+        function updateScreenContent(content) {
+            document.getElementById('screen-content').innerHTML = content;
+        }
+
+        function updateFlowStep(step) {
+            currentStep = step;
             
-            steps.forEach(stepId => {
-                const step = document.getElementById(stepId);
-                step.classList.remove('active', 'processing', 'completed', 'error');
-                
-                const stepTiming = step.querySelector('.step-timing');
-                stepTiming.textContent = '-';
+            // Update flow step indicators
+            document.querySelectorAll('.flow-step').forEach((el, index) => {
+                el.classList.toggle('active', index === step);
             });
-            
-            // Reset step details
-            document.querySelector('#step-input .step-details').textContent = 'Waiting for question...';
-            document.querySelector('#step-stt .step-details').textContent = 'Google Cloud STT processing';
-            document.querySelector('#step-rag .step-details').textContent = 'NCERT content retrieval + GPT-5-nano';
-            document.querySelector('#step-tts .step-details').textContent = 'Google Cloud TTS generation';
-            document.querySelector('#step-delivery .step-details').textContent = 'Audio playback via Exotel';
-        }
-
-        function startRecording() {
-            alert('🎤 Recording functionality would integrate with actual microphone input in production. For demo, please use the demo questions.');
-        }
-
-        function exportResults() {
-            const results = {
-                timestamp: new Date().toISOString(),
-                language: currentLanguage,
-                processing_times: stepTimings,
-                total_time: document.getElementById('total-time').textContent,
-                response: currentResponse
-            };
-            
-            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `vidyavani_demo_results_${Date.now()}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                document.exitFullscreen();
-            }
         }
 
         function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
+
+        // Keyboard shortcuts for demo
+        document.addEventListener('keydown', function(e) {
+            if (e.key >= '0' && e.key <= '9') {
+                pressKey(e.key);
+            } else if (e.key === '*') {
+                pressKey('*');
+            } else if (e.key === '#') {
+                pressKey('#');
+            } else if (e.key === 'Enter' && !callActive) {
+                startCall();
+            } else if (e.key === 'Escape' && callActive) {
+                endCall();
+            }
+        });
     </script>
 </body>
 </html>
