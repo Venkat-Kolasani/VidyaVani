@@ -27,6 +27,12 @@ from src.utils.error_tracker import error_tracker
 from src.utils.logging_config import setup_logging
 from src.utils.call_recorder import call_recorder
 
+# Import production utilities
+from src.utils.production_logger import setup_request_logging
+from src.utils.health_monitor import get_health_monitor
+from src.utils.backup_manager import get_backup_manager
+from src.utils.load_balancer import setup_load_balancing
+
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -34,6 +40,26 @@ app.config.from_object(Config)
 # Configure logging with performance tracking
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# Setup production logging and monitoring
+if Config.IS_PRODUCTION:
+    logger.info("Setting up production environment...")
+    
+    # Setup request logging
+    prod_logger = setup_request_logging(app, Config)
+    
+    # Setup health monitoring
+    health_monitor = get_health_monitor(Config)
+    health_monitor.start_monitoring(interval=60)  # Check every minute
+    
+    # Setup backup manager
+    backup_manager = get_backup_manager(Config)
+    backup_manager.start_auto_backup()
+    
+    # Setup load balancing
+    load_balancer = setup_load_balancing(app, Config)
+    
+    logger.info("Production environment setup completed")
 
 # Initialize IVR handler
 ivr_handler = IVRHandler(session_manager)
@@ -43,14 +69,91 @@ register_audio_routes(app)
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'service': 'VidyaVani IVR Learning System',
-        'llm_model': os.environ.get('LLM_MODEL', 'gpt-5-nano'),
-        'embedding_model': 'text-embedding-3-small',
-        'timestamp': str(np.datetime64('now'))
-    })
+    """Basic health check endpoint"""
+    try:
+        # Import health monitor
+        from src.utils.health_monitor import get_health_monitor
+        health_monitor = get_health_monitor(Config)
+        
+        # Perform quick health check
+        health_status = health_monitor.perform_health_check()
+        
+        return jsonify({
+            'status': health_status.overall_status,
+            'service': 'VidyaVani IVR Learning System',
+            'llm_model': os.environ.get('LLM_MODEL', 'gpt-5-nano'),
+            'embedding_model': 'text-embedding-3-small',
+            'timestamp': str(np.datetime64('now')),
+            'components': {
+                'healthy': health_status.healthy_components,
+                'warning': health_status.warning_components,
+                'critical': health_status.critical_components
+            },
+            'deployment': Config.get_deployment_info()
+        })
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'service': 'VidyaVani IVR Learning System',
+            'error': str(e),
+            'timestamp': str(np.datetime64('now'))
+        }), 500
+
+@app.route('/health/detailed', methods=['GET'])
+def detailed_health_check():
+    """Detailed health check endpoint"""
+    try:
+        from src.utils.health_monitor import get_health_monitor
+        health_monitor = get_health_monitor(Config)
+        
+        health_status = health_monitor.get_health_status()
+        return jsonify(health_status)
+    except Exception as e:
+        logger.error(f"Detailed health check failed: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/health/history', methods=['GET'])
+def health_history():
+    """Health check history endpoint"""
+    try:
+        hours = request.args.get('hours', 24, type=int)
+        
+        from src.utils.health_monitor import get_health_monitor
+        health_monitor = get_health_monitor(Config)
+        
+        history = health_monitor.get_health_history(hours)
+        return jsonify({
+            'history': history,
+            'hours': hours,
+            'count': len(history)
+        })
+    except Exception as e:
+        logger.error(f"Health history failed: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/health/restart', methods=['POST'])
+def manual_restart():
+    """Manual system restart endpoint (admin only)"""
+    try:
+        # Basic authentication check (in production, use proper auth)
+        auth_key = request.headers.get('X-Admin-Key')
+        if auth_key != os.getenv('ADMIN_RESTART_KEY'):
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        from src.utils.health_monitor import get_health_monitor
+        health_monitor = get_health_monitor(Config)
+        
+        success = health_monitor.restart_system()
+        
+        if success:
+            return jsonify({'message': 'System restart initiated'})
+        else:
+            return jsonify({'error': 'Restart failed'}), 500
+            
+    except Exception as e:
+        logger.error(f"Manual restart failed: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/', methods=['GET'])
 def index():
@@ -913,6 +1016,127 @@ def performance_dashboard_page():
     except Exception as e:
         logger.error(f"Error serving dashboard page: {str(e)}")
         return f"<h1>Dashboard Error</h1><p>Could not load dashboard: {str(e)}</p>", 500
+
+@app.route('/production-dashboard', methods=['GET'])
+def production_dashboard_page():
+    """Serve the production dashboard HTML page"""
+    try:
+        return render_template('production_dashboard.html')
+    except Exception as e:
+        logger.error(f"Error serving production dashboard page: {str(e)}")
+        return f"<h1>Production Dashboard Error</h1><p>Could not load dashboard: {str(e)}</p>", 500
+
+# Backup Management API Endpoints
+
+@app.route('/api/backup/create', methods=['POST'])
+def create_backup():
+    """Create system backup"""
+    try:
+        data = request.get_json() or {}
+        backup_type = data.get('backup_type', 'full')
+        components = data.get('components')
+        
+        if Config.IS_PRODUCTION:
+            backup_manager = get_backup_manager(Config)
+            backup_info = backup_manager.create_backup(backup_type, components)
+            
+            if backup_info:
+                return jsonify({
+                    'success': True,
+                    'backup_id': backup_info.backup_id,
+                    'backup_type': backup_info.backup_type,
+                    'size_mb': backup_info.size_bytes / 1024 / 1024,
+                    'components': backup_info.components
+                })
+            else:
+                return jsonify({'error': 'Backup creation failed'}), 500
+        else:
+            return jsonify({'error': 'Backup only available in production'}), 400
+            
+    except Exception as e:
+        logger.error(f"Backup creation error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/backup/restore', methods=['POST'])
+def restore_backup():
+    """Restore from backup"""
+    try:
+        data = request.get_json()
+        backup_id = data.get('backup_id')
+        components = data.get('components')
+        
+        if not backup_id:
+            return jsonify({'error': 'backup_id is required'}), 400
+        
+        if Config.IS_PRODUCTION:
+            backup_manager = get_backup_manager(Config)
+            success = backup_manager.restore_backup(backup_id, components)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': f'Restore from backup {backup_id} completed'
+                })
+            else:
+                return jsonify({'error': 'Restore failed'}), 500
+        else:
+            return jsonify({'error': 'Restore only available in production'}), 400
+            
+    except Exception as e:
+        logger.error(f"Backup restore error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/backup/list', methods=['GET'])
+def list_backups():
+    """List available backups"""
+    try:
+        if Config.IS_PRODUCTION:
+            backup_manager = get_backup_manager(Config)
+            backups = backup_manager.list_backups()
+            status = backup_manager.get_backup_status()
+            
+            return jsonify({
+                'backups': backups,
+                'status': status
+            })
+        else:
+            return jsonify({'backups': [], 'status': {'message': 'Backup not available in development'}})
+            
+    except Exception as e:
+        logger.error(f"Backup list error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Load Balancer API Endpoints
+
+@app.route('/api/load-balancer/status', methods=['GET'])
+def get_load_balancer_status():
+    """Get load balancer status"""
+    try:
+        if Config.IS_PRODUCTION:
+            load_balancer = get_load_balancer(Config)
+            status = load_balancer.get_load_status()
+            return jsonify(status)
+        else:
+            return jsonify({'message': 'Load balancer not active in development'})
+            
+    except Exception as e:
+        logger.error(f"Load balancer status error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/load-balancer/metrics', methods=['GET'])
+def get_load_balancer_metrics():
+    """Get load balancer performance metrics"""
+    try:
+        if Config.IS_PRODUCTION:
+            load_balancer = get_load_balancer(Config)
+            metrics = load_balancer.get_performance_metrics()
+            return jsonify(metrics)
+        else:
+            return jsonify({'load_balancer': {'message': 'Not active in development'}})
+            
+    except Exception as e:
+        logger.error(f"Load balancer metrics error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 # Error Tracking API Endpoints
 

@@ -3,15 +3,29 @@ Configuration settings for VidyaVani IVR Learning System
 """
 
 import os
+import json
 from dataclasses import dataclass
+from typing import Dict, Any
 
 @dataclass
 class Config:
     """Application configuration class"""
     
+    # Environment Detection
+    FLASK_ENV: str = os.getenv('FLASK_ENV', 'development')
+    IS_PRODUCTION: bool = FLASK_ENV == 'production'
+    IS_DEVELOPMENT: bool = FLASK_ENV == 'development'
+    
     # Flask Configuration
     SECRET_KEY: str = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    FLASK_ENV: str = os.getenv('FLASK_ENV', 'development')
+    
+    # Production Security Settings
+    if IS_PRODUCTION:
+        # Force HTTPS in production
+        PREFERRED_URL_SCHEME: str = 'https'
+        SESSION_COOKIE_SECURE: bool = True
+        SESSION_COOKIE_HTTPONLY: bool = True
+        SESSION_COOKIE_SAMESITE: str = 'Lax'
     
     # Exotel Configuration
     EXOTEL_ACCOUNT_SID: str = os.getenv('EXOTEL_ACCOUNT_SID', '')
@@ -52,15 +66,58 @@ class Config:
     CONTENT_OVERLAP: int = int(os.getenv('CONTENT_OVERLAP', '50'))
     TOP_K_RETRIEVAL: int = int(os.getenv('TOP_K_RETRIEVAL', '3'))
     
+    # Deployment Configuration
+    DEPLOYMENT_PLATFORM: str = os.getenv('DEPLOYMENT_PLATFORM', 'local')  # render, railway, docker, local
+    
+    # Load Balancing Configuration
+    GUNICORN_WORKERS: int = int(os.getenv('GUNICORN_WORKERS', '2' if IS_PRODUCTION else '1'))
+    GUNICORN_TIMEOUT: int = int(os.getenv('GUNICORN_TIMEOUT', '120'))
+    GUNICORN_MAX_REQUESTS: int = int(os.getenv('GUNICORN_MAX_REQUESTS', '1000'))
+    GUNICORN_MAX_REQUESTS_JITTER: int = int(os.getenv('GUNICORN_MAX_REQUESTS_JITTER', '100'))
+    
+    # Redis Configuration (Production)
+    REDIS_URL: str = os.getenv('REDIS_URL', 'redis://localhost:6379/0' if IS_PRODUCTION else '')
+    USE_REDIS: bool = bool(REDIS_URL and IS_PRODUCTION)
+    
+    # Logging Configuration
+    LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO' if IS_PRODUCTION else 'DEBUG')
+    LOG_FORMAT: str = os.getenv('LOG_FORMAT', 'json' if IS_PRODUCTION else 'console')
+    
+    # Health Check Configuration
+    HEALTH_CHECK_TIMEOUT: int = int(os.getenv('HEALTH_CHECK_TIMEOUT', '10'))
+    HEALTH_CHECK_INTERVAL: int = int(os.getenv('HEALTH_CHECK_INTERVAL', '30'))
+    
+    @classmethod
+    def get_environment_config(cls) -> Dict[str, Any]:
+        """Get environment-specific configuration"""
+        config = {
+            'environment': cls.FLASK_ENV,
+            'is_production': cls.IS_PRODUCTION,
+            'deployment_platform': cls.DEPLOYMENT_PLATFORM,
+            'workers': cls.GUNICORN_WORKERS,
+            'use_redis': cls.USE_REDIS,
+            'log_level': cls.LOG_LEVEL,
+            'max_concurrent_calls': cls.MAX_CONCURRENT_CALLS,
+            'response_timeout': cls.RESPONSE_TIMEOUT
+        }
+        return config
+    
     @classmethod
     def validate_required_keys(cls):
         """Validate that required environment variables are set"""
         required_keys = [
             'EXOTEL_ACCOUNT_SID',
-            'EXOTEL_API_KEY',
+            'EXOTEL_API_KEY', 
             'EXOTEL_API_TOKEN',
             'OPENAI_API_KEY'
         ]
+        
+        # Additional production requirements
+        if cls.IS_PRODUCTION:
+            required_keys.extend([
+                'SECRET_KEY',
+                'GOOGLE_CLOUD_PROJECT'
+            ])
         
         missing_keys = []
         for key in required_keys:
@@ -71,3 +128,30 @@ class Config:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_keys)}")
         
         return True
+    
+    @classmethod
+    def setup_google_credentials(cls):
+        """Setup Google Cloud credentials from environment"""
+        # Handle Google Cloud credentials JSON from environment variable
+        credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON')
+        if credentials_json and not os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
+            # Write credentials to temporary file for Google Cloud SDK
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                f.write(credentials_json)
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = f.name
+        
+        return os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+    
+    @classmethod
+    def get_deployment_info(cls) -> Dict[str, Any]:
+        """Get deployment information for monitoring"""
+        return {
+            'platform': cls.DEPLOYMENT_PLATFORM,
+            'environment': cls.FLASK_ENV,
+            'workers': cls.GUNICORN_WORKERS,
+            'timeout': cls.GUNICORN_TIMEOUT,
+            'max_requests': cls.GUNICORN_MAX_REQUESTS,
+            'redis_enabled': cls.USE_REDIS,
+            'log_level': cls.LOG_LEVEL
+        }
