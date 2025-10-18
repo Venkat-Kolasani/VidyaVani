@@ -25,6 +25,9 @@ class UserSession:
     start_time: datetime = field(default_factory=datetime.now)
     last_activity: datetime = field(default_factory=datetime.now)
     call_active: bool = True
+    call_sid: str = ""  # Exotel call SID
+    current_recording_url: str = ""  # Current question recording URL
+    current_recording_duration: float = 0.0  # Recording duration in seconds
     
     def update_activity(self):
         """Update last activity timestamp"""
