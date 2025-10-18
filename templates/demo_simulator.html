@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -84,13 +85,28 @@
             animation: pulse 2s infinite;
         }
 
-        .status-connected { background-color: #4CAF50; }
-        .status-processing { background-color: #FF9800; }
-        .status-listening { background-color: #2196F3; }
+        .status-connected {
+            background-color: #4CAF50;
+        }
+
+        .status-processing {
+            background-color: #FF9800;
+        }
+
+        .status-listening {
+            background-color: #2196F3;
+        }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .menu-text {
@@ -222,9 +238,20 @@
         }
 
         @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
+
+            0%,
+            20% {
+                content: '.';
+            }
+
+            40% {
+                content: '..';
+            }
+
+            60%,
+            100% {
+                content: '...';
+            }
         }
 
         .response-display {
@@ -292,7 +319,7 @@
                 right: auto;
                 margin: 20px 0;
             }
-            
+
             body {
                 padding: 10px;
             }
@@ -319,6 +346,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Call Flow Information Panel -->
     <div class="call-flow-info">
@@ -456,7 +484,7 @@
             'idle',
             'welcome',
             'language_selection',
-            'grade_confirmation', 
+            'grade_confirmation',
             'interaction_mode',
             'topic_browsing',
             'question_recording',
@@ -466,7 +494,7 @@
         ];
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadDemoQuestions();
             updateFlowStep(0);
         });
@@ -475,10 +503,10 @@
             try {
                 const response = await fetch('/api/demo/questions');
                 const data = await response.json();
-                
+
                 const questionList = document.getElementById('question-list');
                 questionList.innerHTML = '';
-                
+
                 // Show first 8 questions for demo
                 data.demo_questions.slice(0, 8).forEach((question, index) => {
                     const btn = document.createElement('button');
@@ -487,7 +515,7 @@
                     btn.onclick = () => askDemoQuestion(question);
                     questionList.appendChild(btn);
                 });
-                
+
             } catch (error) {
                 console.error('Failed to load demo questions:', error);
             }
@@ -495,14 +523,14 @@
 
         function startCall() {
             if (callActive) return;
-            
+
             callActive = true;
             document.getElementById('start-call-btn').style.display = 'none';
             document.getElementById('end-call-btn').style.display = 'block';
-            
+
             updateCallStatus('status-connected', 'Call Connected');
             updateFlowStep(1);
-            
+
             // Simulate call connection delay
             setTimeout(() => {
                 playWelcomeMessage();
@@ -511,20 +539,20 @@
 
         function endCall() {
             if (!callActive) return;
-            
+
             callActive = false;
             currentStep = 0;
             isProcessing = false;
-            
+
             document.getElementById('start-call-btn').style.display = 'block';
             document.getElementById('end-call-btn').style.display = 'none';
             document.getElementById('demo-questions').style.display = 'none';
             document.getElementById('response-display').style.display = 'none';
             document.getElementById('processing-indicator').style.display = 'none';
-            
+
             updateCallStatus('status-connected', 'Call Ended');
             updateFlowStep(0);
-            
+
             setTimeout(() => {
                 updateCallStatus('status-connected', 'Ready to Call');
                 updateScreenContent(`
@@ -551,12 +579,12 @@
 
         function pressKey(key) {
             if (!callActive) return;
-            
+
             // Show DTMF feedback
             showDTMFFeedback(key);
-            
+
             // Handle based on current step
-            switch(flowSteps[currentStep]) {
+            switch (flowSteps[currentStep]) {
                 case 'language_selection':
                     handleLanguageSelection(key);
                     break;
@@ -584,7 +612,7 @@
             const feedback = document.getElementById('dtmf-feedback');
             feedback.textContent = key;
             feedback.classList.add('show');
-            
+
             setTimeout(() => {
                 feedback.classList.remove('show');
             }, 500);
@@ -618,7 +646,7 @@
 
         function handleGradeConfirmation(key) {
             if (key === '1') {
-                const message = currentLanguage === 'english' ? 
+                const message = currentLanguage === 'english' ?
                     `<div class="menu-text">
                         📚 <strong>Class 10 Science Confirmed</strong><br><br>
                         How would you like to interact?<br><br>
@@ -631,7 +659,7 @@
                         విषయాలు చూడటానికి <strong>1</strong> నొక్కండి<br>
                         ప్రత్యక్షంగా ప్రశ్న అడగడానికి <strong>2</strong> నొక్కండి
                     </div>`;
-                
+
                 updateScreenContent(message);
                 updateFlowStep(4);
             }
@@ -659,11 +687,11 @@
                         ప్రత్యక్ష ప్రశ్న కోసం <strong>9</strong> నొక్కండి<br>
                         మెయిన్ మెనూ కోసం <strong>0</strong> నొక్కండి
                     </div>`;
-                
+
                 updateScreenContent(message);
                 updateCallStatus('status-connected', 'Browsing Topics');
                 currentStep = 5; // Set to topic browsing step
-                
+
             } else if (key === '2') {
                 const message = currentLanguage === 'english' ?
                     `<div class="menu-text">
@@ -676,11 +704,11 @@
                         దయచేసి మీ క్లాస్ 10 సైన్స్ ప్రశ్నను స్పష్టంగా అడగండి.<br><br>
                         మీరు క్రింది డెమో ప్రశ్నలను ఉపయోగించవచ్చు లేదా మీ ప్రశ్నను చెప్పవచ్చు.
                     </div>`;
-                
+
                 updateScreenContent(message);
                 updateCallStatus('status-listening', 'Listening for Question');
                 currentStep = 6; // Move to question recording step
-                
+
                 // Show demo questions
                 document.getElementById('demo-questions').style.display = 'block';
             }
@@ -712,9 +740,9 @@
                         ప్రత్యక్ష ప్రశ్న కోసం <strong>9</strong> నొక్కండి<br>
                         వెనుకకు వెళ్లడానికి <strong>0</strong> నొక్కండి
                     </div>`;
-                
+
                 updateScreenContent(message);
-                
+
             } else if (key === '2') {
                 // Chemistry topics
                 const message = currentLanguage === 'english' ?
@@ -740,9 +768,9 @@
                         ప్రత్యక్ష ప్రశ్న కోసం <strong>9</strong> నొక్కండి<br>
                         వెనుకకు వెళ్లడానికి <strong>0</strong> నొక్కండి
                     </div>`;
-                
+
                 updateScreenContent(message);
-                
+
             } else if (key === '3') {
                 // Biology topics
                 const message = currentLanguage === 'english' ?
@@ -768,9 +796,9 @@
                         ప్రత్యక్ష ప్రశ్న కోసం <strong>9</strong> నొక్కండి<br>
                         వెనుకకు వెళ్లడానికి <strong>0</strong> నొక్కండి
                     </div>`;
-                
+
                 updateScreenContent(message);
-                
+
             } else if (key === '9') {
                 // Switch to direct question mode
                 const message = currentLanguage === 'english' ?
@@ -784,17 +812,17 @@
                         దయచేసి మీ క్లాస్ 10 సైన్స్ ప్రశ్నను స్పష్టంగా అడగండి.<br><br>
                         మీరు క్రింది డెమో ప్రశ్నలను ఉపయోగించవచ్చు లేదా మీ ప్రశ్నను చెప్పవచ్చు.
                     </div>`;
-                
+
                 updateScreenContent(message);
                 updateCallStatus('status-listening', 'Listening for Question');
                 currentStep = 6; // Move to question recording
-                
+
                 // Show demo questions
                 document.getElementById('demo-questions').style.display = 'block';
-                
+
             } else if (key === '0') {
                 // Go back to interaction mode
-                const message = currentLanguage === 'english' ? 
+                const message = currentLanguage === 'english' ?
                     `<div class="menu-text">
                         📚 <strong>Class 10 Science Confirmed</strong><br><br>
                         How would you like to interact?<br><br>
@@ -807,7 +835,7 @@
                         విషయాలు చూడటానికి <strong>1</strong> నొక్కండి<br>
                         ప్రత్యక్షంగా ప్రశ్న అడగడానికి <strong>2</strong> నొక్కండి
                     </div>`;
-                
+
                 updateScreenContent(message);
                 updateCallStatus('status-connected', 'Interaction Mode');
                 currentStep = 4; // Back to interaction mode
@@ -826,13 +854,13 @@
                         🎤 <strong>తదుపరి ప్రశ్నకు సిద్ధం</strong><br><br>
                         దయచేసి మీ తదుపరి క్లాస్ 10 సైన్స్ ప్రశ్నను అడగండి.
                     </div>`;
-                
+
                 updateScreenContent(message);
                 updateCallStatus('status-listening', 'Listening for Question');
                 currentStep = 6; // Back to question recording
                 document.getElementById('demo-questions').style.display = 'block';
                 document.getElementById('response-display').style.display = 'none';
-                
+
             } else if (key === '9') {
                 // Main menu
                 playWelcomeMessage();
@@ -844,14 +872,14 @@
 
         async function askDemoQuestion(question) {
             if (!callActive || isProcessing) return;
-            
+
             isProcessing = true;
             document.getElementById('demo-questions').style.display = 'none';
-            
+
             // Show processing
             updateCallStatus('status-processing', 'AI Processing Question');
             updateFlowStep(7);
-            
+
             updateScreenContent(`
                 <div class="menu-text">
                     <strong>Question Received:</strong><br>
@@ -859,34 +887,34 @@
                     🤖 AI is processing your question...
                 </div>
             `);
-            
+
             document.getElementById('processing-indicator').style.display = 'block';
-            
+
             try {
                 // Simulate processing time
                 await sleep(2000);
-                
+
                 // Get cached response
                 const response = await fetch('/api/demo/response', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ question: question })
                 });
-                
+
                 const responseData = await response.json();
-                
+
                 if (responseData.response) {
                     currentResponse = responseData.response;
                     showResponse(question, responseData.response);
                 } else {
                     showError("Sorry, I don't have information about that topic. Please try another question.");
                 }
-                
+
             } catch (error) {
                 console.error('Error processing question:', error);
                 showError("There was an error processing your question. Please try again.");
             }
-            
+
             isProcessing = false;
             document.getElementById('processing-indicator').style.display = 'none';
         }
@@ -894,7 +922,7 @@
         function showResponse(question, response) {
             updateCallStatus('status-connected', 'Response Ready');
             updateFlowStep(8);
-            
+
             updateScreenContent(`
                 <div class="menu-text">
                     <strong>Q:</strong> ${question}<br><br>
@@ -902,10 +930,10 @@
                     ${response}
                 </div>
             `);
-            
+
             document.getElementById('response-text').textContent = response;
             document.getElementById('response-display').style.display = 'block';
-            
+
             // Show follow-up menu after a delay
             setTimeout(() => {
                 showFollowUpMenu();
@@ -914,7 +942,7 @@
 
         function showFollowUpMenu() {
             updateFlowStep(9);
-            
+
             const message = currentLanguage === 'english' ?
                 `<div class="menu-text">
                     <strong>What would you like to do next?</strong><br><br>
@@ -928,13 +956,13 @@
                     మెయిన్ మెనూకి <strong>9</strong> నొక్కండి<br>
                     కాల్ ముగించడానికి <strong>0</strong> నొక్కండి
                 </div>`;
-            
+
             updateScreenContent(message);
         }
 
         function showError(message) {
             updateCallStatus('status-connected', 'Error Occurred');
-            
+
             updateScreenContent(`
                 <div class="menu-text" style="border-left-color: #f44336; background: rgba(244, 67, 54, 0.1);">
                     ❌ <strong>Error:</strong><br>
@@ -947,20 +975,20 @@
 
         function playResponse() {
             if (!currentResponse) return;
-            
+
             // Use speech synthesis for demo
             const utterance = new SpeechSynthesisUtterance(currentResponse);
             utterance.rate = 0.9;
             utterance.pitch = 1.0;
             utterance.lang = currentLanguage === 'telugu' ? 'te-IN' : 'en-IN';
-            
+
             speechSynthesis.speak(utterance);
         }
 
         function updateCallStatus(statusClass, statusText) {
             const indicator = document.getElementById('call-status-indicator');
             const text = document.getElementById('call-status-text');
-            
+
             indicator.className = `status-indicator ${statusClass}`;
             text.textContent = statusText;
         }
@@ -971,7 +999,7 @@
 
         function updateFlowStep(step) {
             currentStep = step;
-            
+
             // Update flow step indicators
             document.querySelectorAll('.flow-step').forEach((el, index) => {
                 el.classList.toggle('active', index === step);
@@ -983,7 +1011,7 @@
         }
 
         // Keyboard shortcuts for demo
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             if (e.key >= '0' && e.key <= '9') {
                 pressKey(e.key);
             } else if (e.key === '*') {
@@ -998,4 +1026,5 @@
         });
     </script>
 </body>
+
 </html>
