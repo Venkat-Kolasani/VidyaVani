@@ -43,6 +43,9 @@ class Config:
     # Audio Configuration
     MAX_RECORDING_DURATION: int = int(os.getenv('MAX_RECORDING_DURATION', '15'))
     AUDIO_SAMPLE_RATE: int = int(os.getenv('AUDIO_SAMPLE_RATE', '16000'))
+    AUDIO_IVR_SAMPLE_RATE: int = int(os.getenv('AUDIO_IVR_SAMPLE_RATE', '8000'))
+    AUDIO_STORAGE_BASE_URL: str = os.getenv('AUDIO_STORAGE_BASE_URL', 'http://localhost:5001')
+    AUDIO_STORAGE_DIR: str = os.getenv('AUDIO_STORAGE_DIR', os.path.join(os.getcwd(), 'audio_storage'))
     
     # Content Configuration
     CONTENT_CHUNK_SIZE: int = int(os.getenv('CONTENT_CHUNK_SIZE', '300'))

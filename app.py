@@ -18,6 +18,9 @@ from src.session import session_manager
 # Import IVR handler
 from src.ivr.ivr_handler import IVRHandler
 
+# Import audio storage
+from src.storage.audio_storage import register_audio_routes
+
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -36,6 +39,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize IVR handler
 ivr_handler = IVRHandler(session_manager)
+
+# Register audio serving routes
+register_audio_routes(app)
 
 @app.route('/health', methods=['GET'])
 def health_check():

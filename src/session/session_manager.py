@@ -14,6 +14,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 @dataclass
+class ResponseData:
+    """Stores detailed response information for replay and detailed explanation"""
+    question_text: str
+    response_text: str
+    response_audio_url: str = ""
+    detailed_response_text: str = ""
+    detailed_audio_url: str = ""
+    language: str = "english"
+    timestamp: datetime = field(default_factory=datetime.now)
+
+@dataclass
 class UserSession:
     """User session data structure"""
     session_id: str
@@ -28,6 +39,8 @@ class UserSession:
     call_sid: str = ""  # Exotel call SID
     current_recording_url: str = ""  # Current question recording URL
     current_recording_duration: float = 0.0  # Recording duration in seconds
+    current_response_data: Optional[ResponseData] = None  # Current response for replay/detailed explanation
+    processing_status: str = "idle"  # idle, processing_audio, generating_response, ready
     
     def update_activity(self):
         """Update last activity timestamp"""
@@ -262,6 +275,35 @@ class SessionManager:
     def get_demo_qa_pairs(self) -> List[Tuple[str, str]]:
         """Get all demo question-answer pairs"""
         return self._demo_qa_pairs.copy()
+    
+    def store_response_data(self, phone_number: str, response_data: ResponseData) -> bool:
+        """Store response data for replay and detailed explanation"""
+        with self._lock:
+            session = self.sessions.get(phone_number)
+            if session:
+                session.current_response_data = response_data
+                session.update_activity()
+                logger.info(f"Stored response data for {phone_number}")
+                return True
+            return False
+    
+    def get_current_response_data(self, phone_number: str) -> Optional[ResponseData]:
+        """Get current response data for replay/detailed explanation"""
+        with self._lock:
+            session = self.sessions.get(phone_number)
+            if session:
+                return session.current_response_data
+            return None
+    
+    def update_processing_status(self, phone_number: str, status: str) -> bool:
+        """Update processing status for the session"""
+        with self._lock:
+            session = self.sessions.get(phone_number)
+            if session:
+                session.processing_status = status
+                session.update_activity()
+                return True
+            return False
 
 # Global session manager instance
 session_manager = SessionManager()

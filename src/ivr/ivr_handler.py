@@ -8,6 +8,12 @@ from typing import Dict, Any, Optional
 from flask import request, Response
 from datetime import datetime
 import xml.etree.ElementTree as ET
+import threading
+import time
+
+from src.session.session_manager import ResponseData
+from src.ivr.processing_pipeline import IVRProcessingPipeline
+from config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +22,8 @@ class IVRHandler:
     
     def __init__(self, session_manager):
         self.session_manager = session_manager
+        self.config = Config()
+        self.processing_pipeline = IVRProcessingPipeline(self.config)
         
         # Menu states
         self.MENU_STATES = {
@@ -219,49 +227,120 @@ class IVRHandler:
             
             logger.info(f"Question recorded from {from_number}: {recording_url}, duration: {recording_duration}s")
             
-            # Store recording info in session (for processing pipeline)
+            # Store recording info in session
             session.current_recording_url = recording_url
             session.current_recording_duration = float(recording_duration)
             
-            # Update menu state
+            # Update menu state and processing status
             self.session_manager.update_session_menu(from_number, self.MENU_STATES['processing_question'])
+            self.session_manager.update_processing_status(from_number, 'processing_audio')
             
-            # Generate processing message XML
+            # Start processing pipeline in background thread
+            processing_thread = threading.Thread(
+                target=self._process_question_background,
+                args=(from_number, recording_url, session.language)
+            )
+            processing_thread.daemon = True
+            processing_thread.start()
+            
+            # Generate processing message XML with polling
             xml_response = self._generate_processing_xml(session.language)
             
-            logger.info(f"Processing question for {from_number}")
+            logger.info(f"Started background processing for {from_number}")
             return Response(xml_response, mimetype='application/xml')
             
         except Exception as e:
             logger.error(f"Error handling question recording: {str(e)}")
             return self._generate_error_xml("Sorry, there was an error processing your question.")
     
+    def _process_question_background(self, phone_number: str, recording_url: str, language: str):
+        """
+        Process question in background thread
+        
+        Args:
+            phone_number: User's phone number
+            recording_url: URL of recorded question
+            language: User's language preference
+        """
+        try:
+            logger.info(f"Background processing started for {phone_number}")
+            
+            # Update status
+            self.session_manager.update_processing_status(phone_number, 'generating_response')
+            
+            # Process through pipeline
+            result = self.processing_pipeline.process_question_sync(recording_url, language, phone_number)
+            
+            if result.success:
+                # Store response data in session
+                response_data = ResponseData(
+                    question_text=result.question_text,
+                    response_text=result.response_text,
+                    response_audio_url=result.response_audio_url,
+                    detailed_response_text=result.detailed_response_text,
+                    detailed_audio_url=result.detailed_audio_url,
+                    language=language
+                )
+                
+                self.session_manager.store_response_data(phone_number, response_data)
+                self.session_manager.update_processing_status(phone_number, 'ready')
+                
+                # Add to session history
+                self.session_manager.add_question_to_session(phone_number, result.question_text)
+                self.session_manager.add_response_to_session(phone_number, result.response_text)
+                
+                logger.info(f"Processing completed successfully for {phone_number}")
+                
+            else:
+                logger.error(f"Processing failed for {phone_number}: {result.error_message}")
+                self.session_manager.update_processing_status(phone_number, 'error')
+                
+        except Exception as e:
+            logger.error(f"Background processing failed for {phone_number}: {e}")
+            self.session_manager.update_processing_status(phone_number, 'error')
+    
     def handle_response_delivery(self, request_data: Dict[str, Any]) -> Response:
         """
         Handle delivery of AI-generated response
         
         Args:
-            request_data: Webhook payload with response audio URL
+            request_data: Webhook payload (response audio URL comes from session data)
             
         Returns:
             XML response with follow-up menu
         """
         try:
             from_number = request_data.get('From', '')
-            response_audio_url = request_data.get('ResponseAudioUrl', '')
             
             # Get session
             session = self.session_manager.get_session(from_number)
             if not session:
                 return self._generate_error_xml("Session not found. Please call again.")
             
-            logger.info(f"Delivering response to {from_number}: {response_audio_url}")
+            # Check if processing is complete
+            if session.processing_status != 'ready':
+                # Still processing, wait a bit more
+                if session.processing_status == 'error':
+                    logger.error(f"Processing failed for {from_number}")
+                    return self._generate_error_xml("Sorry, I couldn't process your question. Please try asking again.")
+                else:
+                    # Still processing, redirect back to processing
+                    logger.info(f"Still processing for {from_number}, status: {session.processing_status}")
+                    return Response(self._generate_processing_xml(session.language), mimetype='application/xml')
+            
+            # Get response data
+            response_data = self.session_manager.get_current_response_data(from_number)
+            if not response_data:
+                logger.error(f"No response data found for {from_number}")
+                return self._generate_error_xml("Sorry, I couldn't generate a response. Please try asking again.")
+            
+            logger.info(f"Delivering response to {from_number}: {response_data.response_audio_url}")
             
             # Update menu state
             self.session_manager.update_session_menu(from_number, self.MENU_STATES['follow_up_menu'])
             
             # Generate response delivery with follow-up menu XML
-            xml_response = self._generate_response_delivery_xml(response_audio_url, session.language)
+            xml_response = self._generate_response_delivery_xml(response_data.response_audio_url, session.language)
             
             logger.info(f"Response delivered to {from_number}")
             return Response(xml_response, mimetype='application/xml')
@@ -289,16 +368,33 @@ class IVRHandler:
             if not session:
                 return self._generate_error_xml("Session not found. Please call again.")
             
+            # Get current response data
+            response_data = self.session_manager.get_current_response_data(from_number)
+            if not response_data:
+                logger.error(f"No response data found for follow-up menu: {from_number}")
+                return self._generate_error_xml("Sorry, no previous response found. Please ask a new question.")
+            
             logger.info(f"Follow-up menu selection from {from_number}: {digits}")
             
             if digits == '1':  # Detailed explanation
-                # TODO: Implement detailed explanation logic
-                xml_response = self._generate_feature_not_available_xml(session.language, "detailed explanation")
+                if response_data.detailed_audio_url:
+                    xml_response = self._generate_detailed_explanation_xml(response_data.detailed_audio_url, session.language)
+                else:
+                    # Generate detailed explanation if not available
+                    xml_response = self._generate_processing_detailed_xml(session.language)
+                    # Start background processing for detailed explanation (async)
+                    detailed_thread = threading.Thread(
+                        target=self._generate_detailed_explanation_background,
+                        args=(from_number, response_data)
+                    )
+                    detailed_thread.daemon = True
+                    detailed_thread.start()
+                
                 return Response(xml_response, mimetype='application/xml')
             
             elif digits == '2':  # Repeat answer
-                # TODO: Implement repeat answer logic
-                xml_response = self._generate_feature_not_available_xml(session.language, "repeat answer")
+                # Replay the original response
+                xml_response = self._generate_repeat_response_xml(response_data.response_audio_url, session.language)
                 return Response(xml_response, mimetype='application/xml')
             
             elif digits == '3':  # New question
@@ -320,6 +416,66 @@ class IVRHandler:
         except Exception as e:
             logger.error(f"Error handling follow-up menu: {str(e)}")
             return self._generate_error_xml("Sorry, there was an error. Please try again.")
+    
+    def _generate_detailed_explanation_background(self, phone_number: str, response_data: ResponseData):
+        """
+        Generate detailed explanation in background if not already available
+        
+        Args:
+            phone_number: User's phone number
+            response_data: Current response data
+        """
+        try:
+            if response_data.detailed_audio_url:
+                return  # Already have detailed explanation
+            
+            logger.info(f"Generating detailed explanation for {phone_number}")
+            
+            # Use the processing pipeline to generate detailed response
+            # This is a simplified version - in practice, you might want to 
+            # store the original question and regenerate with detailed context
+            from src.audio.audio_processor import Language
+            from src.rag.context_builder import ContextBuilder
+            from src.rag.response_generator import ResponseGenerator
+            
+            language_enum = Language.TELUGU if response_data.language == 'telugu' else Language.ENGLISH
+            
+            # Build detailed context
+            context_builder = ContextBuilder(self.config)
+            detailed_context = context_builder.build_context(
+                question=response_data.question_text,
+                language=response_data.language,
+                detail_level="detailed"
+            )
+            
+            # Generate detailed response
+            response_generator = ResponseGenerator(self.config)
+            detailed_result = response_generator.generate_response(detailed_context)
+            
+            if detailed_result['success']:
+                # Convert to audio
+                detailed_audio_result = self.processing_pipeline.audio_processor.generate_response_audio(
+                    detailed_result['response_text'], 
+                    language_enum
+                )
+                
+                if detailed_audio_result.success:
+                    # Upload audio
+                    detailed_audio_url = self.processing_pipeline._upload_audio_for_ivr(
+                        detailed_audio_result.audio_data,
+                        f"detailed_{phone_number}_{int(time.time())}"
+                    )
+                    
+                    # Update response data
+                    response_data.detailed_response_text = detailed_result['response_text']
+                    response_data.detailed_audio_url = detailed_audio_url
+                    
+                    self.session_manager.store_response_data(phone_number, response_data)
+                    
+                    logger.info(f"Detailed explanation generated for {phone_number}")
+                
+        except Exception as e:
+            logger.error(f"Failed to generate detailed explanation for {phone_number}: {e}")
     
     def handle_call_end(self, request_data: Dict[str, Any]) -> Response:
         """
@@ -480,7 +636,7 @@ class IVRHandler:
         return ET.tostring(root, encoding='unicode')
     
     def _generate_processing_xml(self, language: str) -> str:
-        """Generate processing message XML"""
+        """Generate processing message XML with polling"""
         root = ET.Element('Response')
         
         if language == 'english':
@@ -496,10 +652,10 @@ class IVRHandler:
         say = ET.SubElement(root, 'Say', voice=voice, language=lang)
         say.text = message
         
-        # Pause for processing (this will be replaced by actual processing pipeline)
-        pause = ET.SubElement(root, 'Pause', length='3')
+        # Pause for processing
+        pause = ET.SubElement(root, 'Pause', length='5')
         
-        # Redirect to response delivery (will be handled by processing pipeline)
+        # Redirect to check processing status
         redirect = ET.SubElement(root, 'Redirect', method='POST')
         redirect.text = '/webhook/response-delivery'
         
@@ -618,6 +774,122 @@ class IVRHandler:
         # Redirect to interaction mode
         redirect = ET.SubElement(root, 'Redirect', method='POST')
         redirect.text = '/webhook/interaction-mode'
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_detailed_explanation_xml(self, detailed_audio_url: str, language: str) -> str:
+        """Generate XML for detailed explanation playback"""
+        root = ET.Element('Response')
+        
+        # Play the detailed explanation
+        if detailed_audio_url:
+            play = ET.SubElement(root, 'Play')
+            play.text = detailed_audio_url
+        else:
+            # Fallback message
+            say = ET.SubElement(root, 'Say', voice='alice', language='en-IN')
+            if language == 'english':
+                say.text = "I apologize, but I couldn't generate a detailed explanation. Let me repeat the original answer."
+            else:
+                say.text = "క్షమించండి, వివరణాత్మక సమాధానం జనరేట్ చేయలేకపోయాను. అసలు సమాధానం మళ్లీ వినండి."
+        
+        # Return to follow-up menu
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            menu_message = "Press 2 to hear the answer again, Press 3 for new question, or Press 9 for main menu."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            menu_message = "మళ్లీ వినడానికి 2 నొక్కండి, కొత్త ప్రశ్న కోసం 3 నొక్కండి, లేదా మెయిన్ మెనూ కోసం 9 నొక్కండి."
+        
+        gather = ET.SubElement(root, 'Gather',
+                              numDigits='1',
+                              timeout='15',
+                              action='/webhook/follow-up-menu',
+                              method='POST')
+        
+        say_gather = ET.SubElement(gather, 'Say', voice=voice, language=lang)
+        say_gather.text = menu_message
+        
+        # Fallback
+        say_fallback = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        if language == 'english':
+            say_fallback.text = "Thank you for using VidyaVani. Goodbye!"
+        else:
+            say_fallback.text = "విద్యావాణిని ఉపయోగించినందుకు ధన్యవాదాలు. వీడ్కోలు!"
+        
+        hangup = ET.SubElement(root, 'Hangup')
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_repeat_response_xml(self, response_audio_url: str, language: str) -> str:
+        """Generate XML for repeating the response"""
+        root = ET.Element('Response')
+        
+        # Play the original response again
+        if response_audio_url:
+            play = ET.SubElement(root, 'Play')
+            play.text = response_audio_url
+        else:
+            # Fallback message
+            say = ET.SubElement(root, 'Say', voice='alice', language='en-IN')
+            if language == 'english':
+                say.text = "I apologize, but I cannot replay the previous answer. Please ask your question again."
+            else:
+                say.text = "క్షమించండి, మునుపటి సమాధానం మళ్లీ ప్లే చేయలేను. దయచేసి మీ ప్రశ్నను మళ్లీ అడగండి."
+        
+        # Return to follow-up menu
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            menu_message = "Press 1 for detailed explanation, Press 3 for new question, or Press 9 for main menu."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            menu_message = "వివరణ కోసం 1 నొక్కండి, కొత్త ప్రశ్న కోసం 3 నొక్కండి, లేదా మెయిన్ మెనూ కోసం 9 నొక్కండి."
+        
+        gather = ET.SubElement(root, 'Gather',
+                              numDigits='1',
+                              timeout='15',
+                              action='/webhook/follow-up-menu',
+                              method='POST')
+        
+        say_gather = ET.SubElement(gather, 'Say', voice=voice, language=lang)
+        say_gather.text = menu_message
+        
+        # Fallback
+        say_fallback = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        if language == 'english':
+            say_fallback.text = "Thank you for using VidyaVani. Goodbye!"
+        else:
+            say_fallback.text = "విద్యావాణిని ఉపయోగించినందుకు ధన్యవాదాలు. వీడ్కోలు!"
+        
+        hangup = ET.SubElement(root, 'Hangup')
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_processing_detailed_xml(self, language: str) -> str:
+        """Generate processing message for detailed explanation"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "Generating detailed explanation. Please wait a moment."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "వివరణాత్మక సమాధానం తయారు చేస్తున్నాను. దయచేసి కాసేపు వేచి ఉండండి."
+        
+        say = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say.text = message
+        
+        pause = ET.SubElement(root, 'Pause', length='3')
+        
+        # Redirect back to follow-up menu (detailed explanation should be ready by then)
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/follow-up-menu'
         
         return ET.tostring(root, encoding='unicode')
     

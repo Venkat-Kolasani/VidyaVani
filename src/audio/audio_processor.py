@@ -20,6 +20,9 @@ from pathlib import Path
 # Add project root to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config import Config
+
+# Add src to path for utils import
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.logging_config import setup_logging
 from .language_detector import LanguageDetector
 from .language_types import Language
@@ -102,7 +105,7 @@ class AudioProcessor:
                 language_code=Language.ENGLISH.value,
                 enable_automatic_punctuation=True,
                 use_enhanced=True,  # Enhanced model for better accuracy
-                model="phone_call",  # Optimized for phone audio
+                # model="phone_call",  # Not supported for en-IN, use default
             ),
             Language.TELUGU: speech.RecognitionConfig(
                 encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
@@ -110,7 +113,7 @@ class AudioProcessor:
                 language_code=Language.TELUGU.value,
                 enable_automatic_punctuation=True,
                 use_enhanced=True,
-                model="phone_call",
+                # model="phone_call",  # Not supported for te-IN, use default
             )
         }
         
@@ -243,7 +246,7 @@ class AudioProcessor:
             # Configure audio output optimized for IVR
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16,  # PCM format for IVR
-                sample_rate_hertz=8000,  # Standard IVR sample rate
+                sample_rate_hertz=self.config.AUDIO_IVR_SAMPLE_RATE,
                 speaking_rate=tts_config.speaking_rate,
                 pitch=tts_config.pitch,
                 volume_gain_db=tts_config.volume_gain_db
