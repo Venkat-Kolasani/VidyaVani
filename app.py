@@ -296,6 +296,9 @@ def webhook_incoming_call():
         
     except Exception as e:
         logger.error(f"Error in incoming call webhook: {str(e)}")
+        error_tracker.track_error('Exotel_Incoming_Call', e, 
+                                 phone_number=request_data.get('From', 'unknown'),
+                                 recovery_action='Generated error XML response')
         return ivr_handler._generate_error_xml("Sorry, there was a technical issue. Please try calling again.")
 
 @app.route('/webhook/language-selection', methods=['POST'])
@@ -314,6 +317,9 @@ def webhook_language_selection():
         
     except Exception as e:
         logger.error(f"Error in language selection webhook: {str(e)}")
+        error_tracker.track_error('Exotel_Language_Selection', e,
+                                 phone_number=request_data.get('From', 'unknown'),
+                                 recovery_action='Generated error XML response')
         return ivr_handler._generate_error_xml("Sorry, there was an error. Please try again.")
 
 @app.route('/webhook/grade-confirmation', methods=['POST'])
@@ -386,6 +392,9 @@ def webhook_question_recording():
         
     except Exception as e:
         logger.error(f"Error in question recording webhook: {str(e)}")
+        error_tracker.track_error('Exotel_Question_Recording', e,
+                                 phone_number=request_data.get('From', 'unknown'),
+                                 recovery_action='Generated error XML response')
         return ivr_handler._generate_error_xml("Sorry, there was an error processing your question.")
 
 @app.route('/webhook/recording-status', methods=['POST'])
@@ -636,6 +645,10 @@ def process_question():
             
     except Exception as e:
         logger.error(f"Error processing question: {str(e)}")
+        error_tracker.track_error('Question_Processing', e,
+                                 session_id=session_id,
+                                 phone_number=phone_number,
+                                 recovery_action='Returned error response to client')
         return jsonify({'error': 'Failed to process question'}), 500
 
 @app.route('/api/processing-status/<phone_number>', methods=['GET'])

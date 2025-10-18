@@ -25,6 +25,7 @@ from config import Config
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.logging_config import setup_logging
 from utils.performance_decorators import track_performance, track_cache_usage
+from utils.error_tracker import error_tracker
 from .language_detector import LanguageDetector
 from .language_types import Language
 
@@ -215,6 +216,7 @@ class AudioProcessor:
             )
         except Exception as e:
             self.logger.error(f"STT processing failed: {e}")
+            error_tracker.track_error('Google_STT', e, recovery_action='Returned fallback error message')
             return AudioProcessingResult(
                 success=False,
                 error_message=self.fallback_messages["processing_error"][language]
@@ -285,6 +287,7 @@ class AudioProcessor:
             )
         except Exception as e:
             self.logger.error(f"TTS processing failed: {e}")
+            error_tracker.track_error('Google_TTS', e, recovery_action='Returned TTS error response')
             return AudioProcessingResult(
                 success=False,
                 error_message=f"Text-to-speech conversion failed: {str(e)}"

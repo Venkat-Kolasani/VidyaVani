@@ -17,6 +17,7 @@ from src.rag.context_builder import ContextBuilder
 from src.rag.response_generator import ResponseGenerator
 from src.session.session_manager import ResponseData
 from src.utils.performance_decorators import track_performance, track_session_activity, PipelineTracker
+from src.utils.error_tracker import error_tracker
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -376,6 +377,9 @@ class IVRProcessingPipeline:
                 except Exception as rag_error:
                     tracker.end_stage("rag_processing", False)
                     logger.error(f"RAG processing failed for {phone_number}: {rag_error}")
+                    error_tracker.track_error('RAG_Processing', rag_error,
+                                             phone_number=phone_number,
+                                             recovery_action='Fallback to error response')
                     return self._handle_rag_failure(question_text, language, phone_number, start_time)
             
                 # Step 5: Generate detailed response (optional)
@@ -449,6 +453,11 @@ class IVRProcessingPipeline:
         except Exception as e:
             processing_time = time.time() - start_time
             logger.error(f"Processing pipeline failed after {processing_time:.2f}s for {phone_number}: {e}")
+            
+            # Track the error for debugging
+            error_tracker.track_error('Processing_Pipeline', e,
+                                     phone_number=phone_number,
+                                     recovery_action='Returned processing failure result')
             
             return ProcessingResult(
                 success=False,

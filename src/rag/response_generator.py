@@ -20,6 +20,7 @@ from config import Config
 # Add performance tracking
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utils.performance_decorators import track_performance
+from utils.error_tracker import error_tracker
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -254,6 +255,8 @@ class ResponseGenerator:
             
         except Exception as e:
             logger.error(f"Response generation failed: {e}")
+            error_tracker.track_error('OpenAI_Response_Generation', e, 
+                                     recovery_action='Generated fallback response')
             return self._generate_fallback_response(context, 'technical_error', error=str(e))
     
     def _generate_fallback_response(self, context: Dict[str, Any], 

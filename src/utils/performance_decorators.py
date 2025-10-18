@@ -54,15 +54,26 @@ def track_performance(component_name: str, track_api_usage: bool = False,
                 result = func(*args, **kwargs)
                 success = True
                 
-                # Extract metrics from result if it's a structured response
-                if hasattr(result, 'success'):
+                # Extract metrics from result - handle both dict and object responses
+                if isinstance(result, dict):
+                    # Handle dictionary responses (common in RAG/response generators)
+                    success = result.get('success', True)
+                    if not success and 'error_message' in result:
+                        error_message = result['error_message']
+                    
+                    # Extract token usage for API calls
+                    if track_api_usage and 'tokens_used' in result:
+                        tokens_used = result['tokens_used']
+                        
+                elif hasattr(result, 'success'):
+                    # Handle object responses (AudioProcessingResult, etc.)
                     success = result.success
                     if hasattr(result, 'error_message'):
                         error_message = result.error_message
-                
-                # Extract token usage for API calls
-                if track_api_usage and hasattr(result, 'tokens_used'):
-                    tokens_used = result.tokens_used
+                    
+                    # Extract token usage for API calls
+                    if track_api_usage and hasattr(result, 'tokens_used'):
+                        tokens_used = result.tokens_used
                 
                 return result
                 
