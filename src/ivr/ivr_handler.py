@@ -13,6 +13,9 @@ import time
 
 from src.session.session_manager import ResponseData
 from src.ivr.processing_pipeline import IVRProcessingPipeline
+from src.ivr.error_recovery_handler import IVRErrorRecoveryHandler
+from src.utils.error_handler import error_handler, ErrorType, with_retry, RetryConfig
+from src.utils.error_tracker import error_tracker
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -24,6 +27,7 @@ class IVRHandler:
         self.session_manager = session_manager
         self.config = Config()
         self.processing_pipeline = IVRProcessingPipeline(self.config)
+        self.error_recovery_handler = IVRErrorRecoveryHandler(session_manager)
         
         # Menu states
         self.MENU_STATES = {
@@ -53,7 +57,7 @@ class IVRHandler:
     
     def handle_incoming_call(self, request_data: Dict[str, Any]) -> Response:
         """
-        Handle incoming call webhook from Exotel
+        Handle incoming call webhook from Exotel with enhanced error handling
         
         Args:
             request_data: Webhook payload from Exotel
@@ -61,16 +65,20 @@ class IVRHandler:
         Returns:
             XML response for Exotel
         """
+        from_number = request_data.get('From', 'unknown')
+        
         try:
             # Extract call information
             call_sid = request_data.get('CallSid', '')
-            from_number = request_data.get('From', '')
             to_number = request_data.get('To', '')
             
             logger.info(f"Incoming call from {from_number} to {to_number}, CallSid: {call_sid}")
             
-            # Create or get session
+            # Create or get session with error handling
             session = self.session_manager.create_session(from_number)
+            if not session:
+                raise Exception("Failed to create session")
+                
             session.call_sid = call_sid
             session.call_active = True
             
@@ -84,12 +92,20 @@ class IVRHandler:
             return Response(xml_response, mimetype='application/xml')
             
         except Exception as e:
-            logger.error(f"Error handling incoming call: {str(e)}")
-            return self._generate_error_xml("Sorry, there was a technical issue. Please try calling again.")
+            # Handle error with enhanced error handling
+            error_response = error_handler.handle_error(
+                error=e,
+                component='IVR_IncomingCall',
+                phone_number=from_number,
+                language='english'  # Default to English for initial call
+            )
+            
+            logger.error(f"Error handling incoming call from {from_number}: {error_response}")
+            return self._generate_error_xml(error_response['message'])
     
     def handle_language_selection(self, request_data: Dict[str, Any]) -> Response:
         """
-        Handle language selection via DTMF
+        Handle language selection via DTMF with enhanced error handling
         
         Args:
             request_data: Webhook payload with DTMF digits
@@ -97,16 +113,21 @@ class IVRHandler:
         Returns:
             XML response for grade confirmation
         """
+        from_number = request_data.get('From', 'unknown')
+        digits = request_data.get('Digits', '')
+        
         try:
-            from_number = request_data.get('From', '')
-            digits = request_data.get('Digits', '')
-            
             logger.info(f"Language selection from {from_number}: {digits}")
             
             # Validate language selection
             if digits not in self.LANGUAGES:
-                logger.warning(f"Invalid language selection: {digits}")
-                return self._generate_invalid_selection_xml("language")
+                logger.warning(f"Invalid language selection: {digits} from {from_number}")
+                # Use appropriate language for error message
+                language = 'english'  # Default fallback
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.INVALID_INPUT, language
+                )
+                return self._generate_invalid_selection_xml("language", language)
             
             # Update session language
             language = self.LANGUAGES[digits]
@@ -114,7 +135,10 @@ class IVRHandler:
             
             if not success:
                 logger.error(f"Failed to update language for {from_number}")
-                return self._generate_error_xml("Session error. Please try calling again.")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.SYSTEM_ERROR, language
+                )
+                return self._generate_error_xml(error_response['message'])
             
             # Update menu state
             self.session_manager.update_session_menu(from_number, self.MENU_STATES['grade_confirmation'])
@@ -126,8 +150,15 @@ class IVRHandler:
             return Response(xml_response, mimetype='application/xml')
             
         except Exception as e:
-            logger.error(f"Error handling language selection: {str(e)}")
-            return self._generate_error_xml("Sorry, there was an error. Please try again.")
+            # Handle error with context
+            error_response = error_handler.handle_error(
+                error=e,
+                component='IVR_LanguageSelection',
+                phone_number=from_number,
+                language='english'  # Default since language selection failed
+            )
+            
+            return self._generate_error_xml(error_response['message'])
     
     def handle_grade_confirmation(self, request_data: Dict[str, Any]) -> Response:
         """
@@ -215,31 +246,53 @@ class IVRHandler:
         Returns:
             XML response indicating processing or error
         """
+        from_number = request_data.get('From', 'unknown')
+        
         try:
-            from_number = request_data.get('From', '')
             recording_url = request_data.get('RecordingUrl', '')
             recording_duration = request_data.get('RecordingDuration', '0')
             
-            # Get session
+            # Get session with error handling
             session = self.session_manager.get_session(from_number)
             if not session:
-                return self._generate_error_xml("Session not found. Please call again.")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.SYSTEM_ERROR, 'english'
+                )
+                return self._generate_error_xml(error_response['message'])
             
             logger.info(f"Question recorded from {from_number}: {recording_url}, duration: {recording_duration}s")
             
-            # Validate recording
-            duration = float(recording_duration) if recording_duration else 0
+            # Validate recording with enhanced error handling
+            try:
+                duration = float(recording_duration) if recording_duration else 0
+            except (ValueError, TypeError):
+                logger.error(f"Invalid recording duration for {from_number}: {recording_duration}")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.RECORDING_ISSUE, session.language
+                )
+                return self._generate_recording_failed_xml(session.language)
             
+            # Check recording duration
             if duration < 1.0:  # Too short
                 logger.warning(f"Recording too short for {from_number}: {duration}s")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.RECORDING_ISSUE, session.language
+                )
                 return self._generate_recording_too_short_xml(session.language)
             
-            if duration > 16.0:  # Too long (should be limited by IVR but check anyway)
+            if duration > 16.0:  # Too long
                 logger.warning(f"Recording too long for {from_number}: {duration}s")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.RECORDING_ISSUE, session.language
+                )
                 return self._generate_recording_too_long_xml(session.language)
             
-            if not recording_url:
+            # Check recording URL
+            if not recording_url or not recording_url.strip():
                 logger.error(f"No recording URL provided for {from_number}")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.RECORDING_ISSUE, session.language
+                )
                 return self._generate_recording_failed_xml(session.language)
             
             # Store recording info in session
@@ -250,9 +303,9 @@ class IVRHandler:
             self.session_manager.update_session_menu(from_number, self.MENU_STATES['processing_question'])
             self.session_manager.update_processing_status(from_number, 'processing_audio')
             
-            # Start processing pipeline in background thread
+            # Start processing pipeline in background thread with error handling
             processing_thread = threading.Thread(
-                target=self._process_question_background,
+                target=self._process_question_background_with_error_handling,
                 args=(from_number, recording_url, session.language)
             )
             processing_thread.daemon = True
@@ -265,8 +318,18 @@ class IVRHandler:
             return Response(xml_response, mimetype='application/xml')
             
         except Exception as e:
-            logger.error(f"Error handling question recording: {str(e)}")
-            return self._generate_error_xml("Sorry, there was an error processing your question.")
+            # Handle unexpected errors
+            session = self.session_manager.get_session(from_number)
+            language = session.language if session else 'english'
+            
+            error_response = error_handler.handle_error(
+                error=e,
+                component='IVR_QuestionRecording',
+                phone_number=from_number,
+                language=language
+            )
+            
+            return self._generate_error_xml(error_response['message'])
     
     def _process_question_background(self, phone_number: str, recording_url: str, language: str):
         """
@@ -314,6 +377,114 @@ class IVRHandler:
             logger.error(f"Background processing failed for {phone_number}: {e}")
             self.session_manager.update_processing_status(phone_number, 'error')
     
+    def _process_question_background_with_error_handling(self, phone_number: str, recording_url: str, language: str):
+        """
+        Process question in background thread with enhanced error handling
+        
+        Args:
+            phone_number: User's phone number
+            recording_url: URL of recorded question
+            language: User's language preference
+        """
+        try:
+            logger.info(f"Background processing started for {phone_number}")
+            
+            # Update status
+            self.session_manager.update_processing_status(phone_number, 'generating_response')
+            
+            # Process through pipeline with retry logic
+            max_retries = 2
+            last_error = None
+            
+            for attempt in range(max_retries):
+                try:
+                    result = self.processing_pipeline.process_question_sync(recording_url, language, phone_number)
+                    
+                    if result.success:
+                        # Store response data in session
+                        response_data = ResponseData(
+                            question_text=result.question_text,
+                            response_text=result.response_text,
+                            response_audio_url=result.response_audio_url,
+                            detailed_response_text=result.detailed_response_text,
+                            detailed_audio_url=result.detailed_audio_url,
+                            language=language
+                        )
+                        
+                        self.session_manager.store_response_data(phone_number, response_data)
+                        self.session_manager.update_processing_status(phone_number, 'ready')
+                        
+                        # Add to session history
+                        self.session_manager.add_question_to_session(phone_number, result.question_text)
+                        self.session_manager.add_response_to_session(phone_number, result.response_text)
+                        
+                        logger.info(f"Processing completed successfully for {phone_number} on attempt {attempt + 1}")
+                        return
+                    else:
+                        # Processing failed, but not an exception
+                        logger.warning(f"Processing failed for {phone_number} on attempt {attempt + 1}: {result.error_message}")
+                        last_error = Exception(result.error_message)
+                        
+                        if attempt < max_retries - 1:
+                            time.sleep(1.0)  # Brief delay before retry
+                            continue
+                        else:
+                            break
+                            
+                except Exception as e:
+                    logger.error(f"Processing attempt {attempt + 1} failed for {phone_number}: {e}")
+                    last_error = e
+                    
+                    if attempt < max_retries - 1:
+                        time.sleep(1.0)  # Brief delay before retry
+                        continue
+                    else:
+                        break
+            
+            # All attempts failed
+            logger.error(f"All processing attempts failed for {phone_number}")
+            
+            # Track the error
+            if last_error:
+                error_tracker.track_error(
+                    component='Background_Processing',
+                    error=last_error,
+                    phone_number=phone_number,
+                    recovery_action=f'Failed after {max_retries} attempts'
+                )
+            
+            # Store error information for later retrieval
+            self.session_manager.update_processing_status(phone_number, 'error')
+            
+            # Store fallback error message
+            error_response = error_handler.get_fallback_response(
+                ErrorType.PROCESSING_TIMEOUT, language
+            )
+            
+            # Store minimal response data for error handling
+            error_response_data = ResponseData(
+                question_text="",
+                response_text=error_response['message'],
+                response_audio_url="",
+                detailed_response_text="",
+                detailed_audio_url="",
+                language=language
+            )
+            self.session_manager.store_response_data(phone_number, error_response_data)
+                
+        except Exception as e:
+            logger.error(f"Critical error in background processing for {phone_number}: {e}")
+            
+            # Track critical error
+            error_tracker.track_error(
+                component='Background_Processing_Critical',
+                error=e,
+                phone_number=phone_number,
+                recovery_action='Set error status and fallback response'
+            )
+            
+            self.session_manager.update_processing_status(phone_number, 'error')
+    
     def handle_response_delivery(self, request_data: Dict[str, Any]) -> Response:
         """
         Handle delivery of AI-generated response with enhanced error handling
@@ -324,25 +495,40 @@ class IVRHandler:
         Returns:
             XML response with follow-up menu or appropriate error handling
         """
+        from_number = request_data.get('From', 'unknown')
+        
         try:
-            from_number = request_data.get('From', '')
-            
-            # Get session
+            # Get session with error handling
             session = self.session_manager.get_session(from_number)
             if not session:
-                return self._generate_error_xml("Session not found. Please call again.")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.SYSTEM_ERROR, 'english'
+                )
+                return self._generate_error_xml(error_response['message'])
             
             # Check processing status with enhanced handling
             if session.processing_status == 'error':
                 logger.error(f"Processing failed for {from_number}")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.PROCESSING_TIMEOUT, session.language
+                )
                 return self._generate_processing_error_xml(session.language)
             
             elif session.processing_status in ['processing_audio', 'generating_response']:
                 # Still processing, check how long it's been
                 processing_time = (datetime.now() - session.last_activity).total_seconds()
                 
-                if processing_time > 12:  # Timeout after 12 seconds
+                if processing_time > 15:  # Extended timeout for demo reliability
                     logger.error(f"Processing timeout for {from_number} after {processing_time}s")
+                    
+                    # Track timeout error
+                    error_tracker.track_error(
+                        component='Response_Delivery_Timeout',
+                        error=Exception(f"Processing timeout after {processing_time}s"),
+                        phone_number=from_number,
+                        recovery_action='Redirect to timeout error handling'
+                    )
+                    
                     self.session_manager.update_processing_status(from_number, 'error')
                     return self._generate_timeout_error_xml(session.language)
                 else:
@@ -355,15 +541,35 @@ class IVRHandler:
                 logger.warning(f"Unknown processing status for {from_number}: {session.processing_status}")
                 return Response(self._generate_processing_xml(session.language), mimetype='application/xml')
             
-            # Get response data
+            # Get response data with validation
             response_data = self.session_manager.get_current_response_data(from_number)
             if not response_data:
                 logger.error(f"No response data found for {from_number}")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.CONTENT_NOT_FOUND, session.language
+                )
                 return self._generate_no_response_error_xml(session.language)
             
-            # Validate response audio URL
+            # Validate response content
+            if not response_data.response_text and not response_data.response_audio_url:
+                logger.error(f"No response content found for {from_number}")
+                error_response = error_handler.get_fallback_response(
+                    ErrorType.CONTENT_NOT_FOUND, session.language
+                )
+                return self._generate_no_response_error_xml(session.language)
+            
+            # Handle missing audio URL gracefully
             if not response_data.response_audio_url:
-                logger.error(f"No audio URL found for {from_number}")
+                logger.warning(f"No audio URL found for {from_number}, using text fallback")
+                
+                # Track audio generation failure
+                error_tracker.track_error(
+                    component='Audio_Generation_Missing',
+                    error=Exception("Response audio URL not available"),
+                    phone_number=from_number,
+                    recovery_action='Fallback to text-to-speech'
+                )
+                
                 return self._generate_audio_error_xml(session.language, response_data.response_text)
             
             logger.info(f"Delivering response to {from_number}: {response_data.response_audio_url}")
@@ -374,12 +580,23 @@ class IVRHandler:
             # Generate response delivery with follow-up menu XML
             xml_response = self._generate_response_delivery_xml(response_data.response_audio_url, session.language)
             
-            logger.info(f"Response delivered to {from_number}")
+            logger.info(f"Response delivered successfully to {from_number}")
             return Response(xml_response, mimetype='application/xml')
             
         except Exception as e:
-            logger.error(f"Error handling response delivery: {str(e)}")
-            return self._generate_error_xml("Sorry, there was an error delivering the response.")
+            # Handle unexpected errors in response delivery
+            session = self.session_manager.get_session(from_number)
+            language = session.language if session else 'english'
+            
+            error_response = error_handler.handle_error(
+                error=e,
+                component='IVR_ResponseDelivery',
+                phone_number=from_number,
+                language=language
+            )
+            
+            logger.error(f"Error in response delivery for {from_number}: {error_response}")
+            return self._generate_error_xml(error_response['message'])
     
     def handle_follow_up_menu(self, request_data: Dict[str, Any]) -> Response:
         """
@@ -508,6 +725,18 @@ class IVRHandler:
                 
         except Exception as e:
             logger.error(f"Failed to generate detailed explanation for {phone_number}: {e}")
+    
+    def handle_error_recovery(self, request_data: Dict[str, Any]) -> Response:
+        """
+        Handle error recovery menu selections
+        
+        Args:
+            request_data: Webhook payload with DTMF digits
+            
+        Returns:
+            XML response based on recovery selection
+        """
+        return self.error_recovery_handler.handle_error_recovery(request_data)
     
     def handle_call_end(self, request_data: Dict[str, Any]) -> Response:
         """

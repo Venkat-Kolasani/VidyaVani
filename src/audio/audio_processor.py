@@ -6,6 +6,7 @@ with support for English and Telugu languages, optimized for IVR platform compat
 """
 
 import logging
+import time
 from typing import Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -152,146 +153,207 @@ class AudioProcessor:
         }
 
     @track_performance("STT_Processing", track_api_usage=True, service_name="google_stt")
-    def speech_to_text(self, audio_data: bytes, language: Language = Language.ENGLISH) -> AudioProcessingResult:
+    def speech_to_text(self, audio_data: bytes, language: Language = Language.ENGLISH, max_retries: int = 2) -> AudioProcessingResult:
         """
-        Convert speech audio to text using Google Cloud Speech-to-Text API
+        Convert speech audio to text using Google Cloud Speech-to-Text API with retry logic
         
         Args:
             audio_data: Raw audio data in bytes
             language: Target language for recognition
+            max_retries: Maximum number of retry attempts
             
         Returns:
             AudioProcessingResult with transcribed text or error information
         """
-        try:
-            # Prepare audio for Google Cloud STT
-            audio = speech.RecognitionAudio(content=audio_data)
-            config = self.stt_configs[language]
-            
-            self.logger.info(f"Starting STT processing for {language.value}")
-            
-            # Perform speech recognition
-            response = self.stt_client.recognize(config=config, audio=audio)
-            
-            if not response.results:
-                self.logger.warning("No speech detected in audio")
+        last_error = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                # Prepare audio for Google Cloud STT
+                audio = speech.RecognitionAudio(content=audio_data)
+                config = self.stt_configs[language]
+                
+                self.logger.info(f"Starting STT processing for {language.value} (attempt {attempt + 1})")
+                
+                # Perform speech recognition with timeout
+                response = self.stt_client.recognize(config=config, audio=audio, timeout=10)
+                
+                if not response.results:
+                    self.logger.warning(f"No speech detected in audio (attempt {attempt + 1})")
+                    if attempt < max_retries:
+                        continue
+                    return AudioProcessingResult(
+                        success=False,
+                        error_message=self.fallback_messages["unclear_speech"][language]
+                    )
+                
+                # Get the best transcription result
+                result = response.results[0]
+                transcript = result.alternatives[0].transcript
+                confidence = result.alternatives[0].confidence
+                
+                self.logger.info(f"STT successful on attempt {attempt + 1}: confidence={confidence:.2f}")
+                
+                # Check confidence threshold with retry logic
+                if confidence < 0.5:  # Lower threshold for retries
+                    self.logger.warning(f"Low confidence transcription on attempt {attempt + 1}: {confidence:.2f}")
+                    if attempt < max_retries:
+                        time.sleep(0.5)  # Brief delay before retry
+                        continue
+                    return AudioProcessingResult(
+                        success=False,
+                        error_message=self.fallback_messages["unclear_speech"][language]
+                    )
+                
                 return AudioProcessingResult(
-                    success=False,
-                    error_message=self.fallback_messages["unclear_speech"][language]
+                    success=True,
+                    content=transcript.strip(),
+                    confidence=confidence,
+                    detected_language=language.value
                 )
-            
-            # Get the best transcription result
-            result = response.results[0]
-            transcript = result.alternatives[0].transcript
-            confidence = result.alternatives[0].confidence
-            
-            self.logger.info(f"STT successful: confidence={confidence:.2f}")
-            
-            # Check confidence threshold
-            if confidence < 0.6:  # Low confidence threshold
-                self.logger.warning(f"Low confidence transcription: {confidence:.2f}")
-                return AudioProcessingResult(
-                    success=False,
-                    error_message=self.fallback_messages["unclear_speech"][language]
-                )
-            
-            return AudioProcessingResult(
-                success=True,
-                content=transcript.strip(),
-                confidence=confidence,
-                detected_language=language.value
-            )
-            
-        except google_exceptions.InvalidArgument as e:
-            self.logger.error(f"Invalid audio format: {e}")
-            return AudioProcessingResult(
-                success=False,
-                error_message=self.fallback_messages["processing_error"][language]
-            )
-        except google_exceptions.DeadlineExceeded as e:
-            self.logger.error(f"STT timeout: {e}")
-            return AudioProcessingResult(
-                success=False,
-                error_message=self.fallback_messages["processing_error"][language]
-            )
-        except Exception as e:
-            self.logger.error(f"STT processing failed: {e}")
-            error_tracker.track_error('Google_STT', e, recovery_action='Returned fallback error message')
-            return AudioProcessingResult(
-                success=False,
-                error_message=self.fallback_messages["processing_error"][language]
-            )
+                
+            except google_exceptions.InvalidArgument as e:
+                self.logger.error(f"Invalid audio format on attempt {attempt + 1}: {e}")
+                last_error = e
+                # Don't retry for invalid format
+                break
+                
+            except google_exceptions.DeadlineExceeded as e:
+                self.logger.error(f"STT timeout on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(1.0)  # Longer delay for timeout
+                    continue
+                    
+            except google_exceptions.ResourceExhausted as e:
+                self.logger.error(f"STT quota exceeded on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(2.0)  # Longer delay for quota issues
+                    continue
+                    
+            except Exception as e:
+                self.logger.error(f"STT processing failed on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(0.5)
+                    continue
+        
+        # All attempts failed
+        self.logger.error(f"STT failed after {max_retries + 1} attempts")
+        error_tracker.track_error('Google_STT', last_error or Exception("STT failed after retries"), 
+                                 recovery_action=f'Failed after {max_retries + 1} attempts')
+        
+        return AudioProcessingResult(
+            success=False,
+            error_message=self.fallback_messages["processing_error"][language]
+        )
 
     @track_performance("TTS_Processing", track_api_usage=True, service_name="google_tts")
-    def text_to_speech(self, text: str, language: Language = Language.ENGLISH) -> AudioProcessingResult:
+    def text_to_speech(self, text: str, language: Language = Language.ENGLISH, max_retries: int = 2) -> AudioProcessingResult:
         """
-        Convert text to speech using Google Cloud Text-to-Speech API
+        Convert text to speech using Google Cloud Text-to-Speech API with retry logic
         
         Args:
             text: Text to convert to speech
             language: Target language for synthesis
+            max_retries: Maximum number of retry attempts
             
         Returns:
             AudioProcessingResult with audio data or error information
         """
-        try:
-            # Get TTS configuration for language
-            tts_config = self.tts_configs[language]
-            
-            # Prepare synthesis input
-            synthesis_input = texttospeech.SynthesisInput(text=text)
-            
-            # Configure voice parameters
-            voice = texttospeech.VoiceSelectionParams(
-                language_code=tts_config.language_code,
-                name=tts_config.voice_name,
-                ssml_gender=tts_config.gender.value
-            )
-            
-            # Configure audio output optimized for IVR
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.LINEAR16,  # PCM format for IVR
-                sample_rate_hertz=self.config.AUDIO_IVR_SAMPLE_RATE,
-                speaking_rate=tts_config.speaking_rate,
-                pitch=tts_config.pitch,
-                volume_gain_db=tts_config.volume_gain_db
-            )
-            
-            self.logger.info(f"Starting TTS processing for {language.value}")
-            
-            # Perform text-to-speech synthesis
-            response = self.tts_client.synthesize_speech(
-                input=synthesis_input,
-                voice=voice,
-                audio_config=audio_config
-            )
-            
-            self.logger.info("TTS synthesis completed successfully")
-            
-            return AudioProcessingResult(
-                success=True,
-                audio_data=response.audio_content
-            )
-            
-        except google_exceptions.InvalidArgument as e:
-            self.logger.error(f"Invalid TTS parameters: {e}")
+        # Validate input text
+        if not text or not text.strip():
+            self.logger.error("Empty text provided for TTS")
             return AudioProcessingResult(
                 success=False,
-                error_message=f"Text-to-speech conversion failed: {str(e)}"
+                error_message="No text provided for speech synthesis"
             )
-        except google_exceptions.DeadlineExceeded as e:
-            self.logger.error(f"TTS timeout: {e}")
-            return AudioProcessingResult(
-                success=False,
-                error_message="Text-to-speech conversion timed out"
-            )
-        except Exception as e:
-            self.logger.error(f"TTS processing failed: {e}")
-            error_tracker.track_error('Google_TTS', e, recovery_action='Returned TTS error response')
-            return AudioProcessingResult(
-                success=False,
-                error_message=f"Text-to-speech conversion failed: {str(e)}"
-            )
+        
+        # Truncate text if too long (for demo reliability)
+        if len(text) > 500:
+            text = text[:497] + "..."
+            self.logger.warning(f"Text truncated to 500 characters for TTS")
+        
+        last_error = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                # Get TTS configuration for language
+                tts_config = self.tts_configs[language]
+                
+                # Prepare synthesis input
+                synthesis_input = texttospeech.SynthesisInput(text=text)
+                
+                # Configure voice parameters
+                voice = texttospeech.VoiceSelectionParams(
+                    language_code=tts_config.language_code,
+                    name=tts_config.voice_name,
+                    ssml_gender=tts_config.gender.value
+                )
+                
+                # Configure audio output optimized for IVR
+                audio_config = texttospeech.AudioConfig(
+                    audio_encoding=texttospeech.AudioEncoding.LINEAR16,  # PCM format for IVR
+                    sample_rate_hertz=self.config.AUDIO_IVR_SAMPLE_RATE,
+                    speaking_rate=tts_config.speaking_rate,
+                    pitch=tts_config.pitch,
+                    volume_gain_db=tts_config.volume_gain_db
+                )
+                
+                self.logger.info(f"Starting TTS processing for {language.value} (attempt {attempt + 1})")
+                
+                # Perform text-to-speech synthesis with timeout
+                response = self.tts_client.synthesize_speech(
+                    input=synthesis_input,
+                    voice=voice,
+                    audio_config=audio_config,
+                    timeout=15  # 15 second timeout
+                )
+                
+                self.logger.info(f"TTS synthesis completed successfully on attempt {attempt + 1}")
+                
+                return AudioProcessingResult(
+                    success=True,
+                    audio_data=response.audio_content
+                )
+                
+            except google_exceptions.InvalidArgument as e:
+                self.logger.error(f"Invalid TTS parameters on attempt {attempt + 1}: {e}")
+                last_error = e
+                # Don't retry for invalid parameters
+                break
+                
+            except google_exceptions.DeadlineExceeded as e:
+                self.logger.error(f"TTS timeout on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(1.0)
+                    continue
+                    
+            except google_exceptions.ResourceExhausted as e:
+                self.logger.error(f"TTS quota exceeded on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(2.0)  # Longer delay for quota issues
+                    continue
+                    
+            except Exception as e:
+                self.logger.error(f"TTS processing failed on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(0.5)
+                    continue
+        
+        # All attempts failed
+        self.logger.error(f"TTS failed after {max_retries + 1} attempts")
+        error_tracker.track_error('Google_TTS', last_error or Exception("TTS failed after retries"), 
+                                 recovery_action=f'Failed after {max_retries + 1} attempts')
+        
+        return AudioProcessingResult(
+            success=False,
+            error_message=f"Text-to-speech conversion failed after {max_retries + 1} attempts"
+        )
 
     @track_performance("Language_Detection")
     def detect_language(self, audio_data: bytes) -> Language:

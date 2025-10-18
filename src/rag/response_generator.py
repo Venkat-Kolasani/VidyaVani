@@ -175,12 +175,13 @@ class ResponseGenerator:
         logger.info(f"Response generator initialized with model: {self.model}")
     
     @track_performance("OpenAI_Response_Generation", track_api_usage=True, service_name="openai_gpt", estimate_cost=True)
-    def generate_response(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_response(self, context: Dict[str, Any], max_retries: int = 2) -> Dict[str, Any]:
         """
-        Generate educational response using Vidya persona
+        Generate educational response using Vidya persona with retry logic
         
         Args:
             context: Context dictionary from ContextBuilder
+            max_retries: Maximum number of retry attempts
             
         Returns:
             Response dictionary with generated content and metadata
@@ -193,71 +194,115 @@ class ResponseGenerator:
         
         logger.info(f"Generating response for: '{question[:50]}...' (lang: {language})")
         
-        try:
-            # Handle no content scenario
-            if not context['search_results']['found_relevant_content']:
-                return self._generate_fallback_response(context, 'no_content')
-            
-            # Check context quality
-            quality = context['context_quality']
-            if quality['score'] < 0.2:
-                return self._generate_fallback_response(context, 'no_content')
-            
-            # Build prompts
-            system_prompt = VidyaPersona.get_system_prompt(language, detail_level)
-            user_prompt = VidyaPersona.get_user_prompt_template().format(
-                question=question,
-                context=context['formatted_context']
-            )
-            
-            # Generate response using OpenAI
-            response = self.openai_client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                max_tokens=self.max_response_tokens,
-                temperature=self.temperature,
-                top_p=0.9,
-                frequency_penalty=0.1,
-                presence_penalty=0.1
-            )
-            
-            generated_text = response.choices[0].message.content.strip()
-            
-            # Calculate response metrics
-            generation_time = time.time() - start_time
-            word_count = len(generated_text.split())
-            estimated_speech_time = word_count / 2.5  # ~2.5 words per second
-            
-            # Check if response is within time limit (90 seconds)
-            within_time_limit = estimated_speech_time <= 90
-            
-            result = {
-                'response_text': generated_text,
-                'language': language,
-                'detail_level': detail_level,
-                'generation_time': generation_time,
-                'word_count': word_count,
-                'estimated_speech_time': estimated_speech_time,
-                'within_time_limit': within_time_limit,
-                'context_quality': quality,
-                'source_chunks': context['search_results']['source_chunks'],
-                'model_used': self.model,
-                'tokens_used': response.usage.total_tokens,
-                'success': True
-            }
-            
-            logger.info(f"Response generated in {generation_time:.3f}s ({word_count} words, ~{estimated_speech_time:.1f}s speech)")
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Response generation failed: {e}")
-            error_tracker.track_error('OpenAI_Response_Generation', e, 
-                                     recovery_action='Generated fallback response')
-            return self._generate_fallback_response(context, 'technical_error', error=str(e))
+        # Handle no content scenario early
+        if not context['search_results']['found_relevant_content']:
+            return self._generate_fallback_response(context, 'no_content')
+        
+        # Check context quality
+        quality = context['context_quality']
+        if quality['score'] < 0.1:  # Very low threshold for demo
+            return self._generate_fallback_response(context, 'no_content')
+        
+        last_error = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                # Build prompts
+                system_prompt = VidyaPersona.get_system_prompt(language, detail_level)
+                user_prompt = VidyaPersona.get_user_prompt_template().format(
+                    question=question,
+                    context=context['formatted_context']
+                )
+                
+                logger.info(f"OpenAI request attempt {attempt + 1} for question: {question[:30]}...")
+                
+                # Generate response using OpenAI with timeout
+                response = self.openai_client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    max_tokens=self.max_response_tokens,
+                    temperature=self.temperature,
+                    top_p=0.9,
+                    frequency_penalty=0.1,
+                    presence_penalty=0.1,
+                    timeout=15  # 15 second timeout
+                )
+                
+                generated_text = response.choices[0].message.content.strip()
+                
+                # Validate generated response
+                if not generated_text or len(generated_text.strip()) < 10:
+                    logger.warning(f"Generated response too short on attempt {attempt + 1}")
+                    if attempt < max_retries:
+                        time.sleep(0.5)
+                        continue
+                    return self._generate_fallback_response(context, 'technical_error')
+                
+                # Calculate response metrics
+                generation_time = time.time() - start_time
+                word_count = len(generated_text.split())
+                estimated_speech_time = word_count / 2.5  # ~2.5 words per second
+                
+                # Check if response is within time limit (90 seconds)
+                within_time_limit = estimated_speech_time <= 90
+                
+                result = {
+                    'response_text': generated_text,
+                    'language': language,
+                    'detail_level': detail_level,
+                    'generation_time': generation_time,
+                    'word_count': word_count,
+                    'estimated_speech_time': estimated_speech_time,
+                    'within_time_limit': within_time_limit,
+                    'context_quality': quality,
+                    'source_chunks': context['search_results']['source_chunks'],
+                    'model_used': self.model,
+                    'tokens_used': response.usage.total_tokens,
+                    'success': True,
+                    'attempt_number': attempt + 1
+                }
+                
+                logger.info(f"Response generated successfully on attempt {attempt + 1} in {generation_time:.3f}s ({word_count} words, ~{estimated_speech_time:.1f}s speech)")
+                
+                return result
+                
+            except openai.RateLimitError as e:
+                logger.error(f"OpenAI rate limit exceeded on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(2.0 ** attempt)  # Exponential backoff
+                    continue
+                    
+            except openai.APITimeoutError as e:
+                logger.error(f"OpenAI timeout on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(1.0)
+                    continue
+                    
+            except openai.APIConnectionError as e:
+                logger.error(f"OpenAI connection error on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(1.0)
+                    continue
+                    
+            except Exception as e:
+                logger.error(f"Response generation failed on attempt {attempt + 1}: {e}")
+                last_error = e
+                if attempt < max_retries:
+                    time.sleep(0.5)
+                    continue
+        
+        # All attempts failed
+        logger.error(f"Response generation failed after {max_retries + 1} attempts")
+        error_tracker.track_error('OpenAI_Response_Generation', last_error or Exception("Generation failed after retries"), 
+                                 recovery_action=f'Generated fallback response after {max_retries + 1} attempts')
+        
+        return self._generate_fallback_response(context, 'technical_error', error=str(last_error) if last_error else "Multiple attempts failed")
     
     def _generate_fallback_response(self, context: Dict[str, Any], 
                                   fallback_type: str, 
