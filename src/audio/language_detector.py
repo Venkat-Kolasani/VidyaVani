@@ -10,7 +10,7 @@ from enum import Enum
 from google.cloud import speech
 from google.api_core import exceptions as google_exceptions
 
-from .audio_processor import Language
+from .language_types import Language
 
 
 @dataclass

@@ -2,11 +2,11 @@
 
 from .audio_processor import (
     AudioProcessor,
-    Language,
     VoiceGender,
     AudioProcessingResult,
     TTSConfig
 )
+from .language_types import Language
 from .audio_utils import (
     AudioCodec,
     AudioQualityChecker,

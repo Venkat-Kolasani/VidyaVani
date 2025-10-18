@@ -5,9 +5,8 @@ This module handles speech-to-text and text-to-speech conversion using Google Cl
 with support for English and Telugu languages, optimized for IVR platform compatibility.
 """
 
-import io
 import logging
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional
 from dataclasses import dataclass
 from enum import Enum
 
@@ -21,12 +20,12 @@ from pathlib import Path
 # Add project root to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config import Config
+from utils.logging_config import setup_logging
+from .language_detector import LanguageDetector
+from .language_types import Language
 
 
-class Language(Enum):
-    """Supported languages for audio processing"""
-    ENGLISH = "en-IN"  # Indian English
-    TELUGU = "te-IN"   # Telugu (India)
+_LOGGING_CONFIGURED = False
 
 
 class VoiceGender(Enum):
@@ -67,7 +66,14 @@ class AudioProcessor:
     def __init__(self, config: Config):
         """Initialize audio processor with Google Cloud clients"""
         self.config = config
+
+        global _LOGGING_CONFIGURED
+        if not _LOGGING_CONFIGURED:
+            setup_logging()
+            _LOGGING_CONFIGURED = True
+
         self.logger = logging.getLogger(__name__)
+        self.language_detector: Optional[LanguageDetector] = None
         
         # Initialize Google Cloud clients
         try:
@@ -77,6 +83,16 @@ class AudioProcessor:
         except Exception as e:
             self.logger.error(f"Failed to initialize Google Cloud clients: {e}")
             raise
+
+        try:
+            self.language_detector = LanguageDetector(self.stt_client)
+            self.logger.debug("Language detector initialized")
+        except Exception as detector_error:
+            self.language_detector = None
+            self.logger.warning(
+                "Advanced language detection unavailable, falling back to basic detection: %s",
+                detector_error,
+            )
         
         # Language configurations for STT
         self.stt_configs = {
@@ -279,20 +295,46 @@ class AudioProcessor:
             Detected Language enum value
         """
         try:
-            # Try English first (more common)
+            if self.language_detector:
+                try:
+                    detection = self.language_detector.detect_language_advanced(audio_data)
+                except Exception as detection_error:
+                    self.logger.warning(
+                        "Advanced language detection failed, using fallback: %s",
+                        detection_error,
+                    )
+                else:
+                    self.logger.info(
+                        "Language detection result: %s (confidence %.2f)",
+                        detection.detected_language.value,
+                        detection.confidence,
+                    )
+                    if detection.accent_info:
+                        self.logger.debug("Detected accent: %s", detection.accent_info)
+
+                    if detection.confidence < 0.5 and detection.alternative_languages:
+                        alt_language, alt_confidence = detection.alternative_languages[0]
+                        self.logger.info(
+                            "Using alternative language %s (confidence %.2f)",
+                            alt_language.value,
+                            alt_confidence,
+                        )
+                        return alt_language
+
+                    return detection.detected_language
+
+            # Fallback to basic detection if detector unavailable or failed
             english_result = self.speech_to_text(audio_data, Language.ENGLISH)
-            if english_result.success and english_result.confidence > 0.7:
+            if english_result.success and english_result.confidence and english_result.confidence > 0.7:
                 return Language.ENGLISH
-            
-            # Try Telugu
+
             telugu_result = self.speech_to_text(audio_data, Language.TELUGU)
-            if telugu_result.success and telugu_result.confidence > 0.7:
+            if telugu_result.success and telugu_result.confidence and telugu_result.confidence > 0.7:
                 return Language.TELUGU
-            
-            # Default to English if both fail or have low confidence
+
             self.logger.warning("Language detection inconclusive, defaulting to English")
             return Language.ENGLISH
-            
+
         except Exception as e:
             self.logger.error(f"Language detection failed: {e}")
             return Language.ENGLISH
