@@ -7,6 +7,7 @@ suggestions for debugging during demo preparation.
 
 import logging
 import traceback
+import hashlib
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
@@ -146,12 +147,14 @@ class ErrorTracker:
         self.error_counts[error_type] += 1
         self.component_errors[component].append(error_event)
         
-        # Log error with context
+        # Log error with context (anonymizing phone number for privacy)
         logger.error(f"ERROR_TRACKED - {component} - {error_type}: {str(error)}")
         if session_id:
             logger.error(f"  Session: {session_id}")
         if phone_number:
-            logger.error(f"  Phone: {phone_number}")
+            # Hash phone number for privacy compliance
+            phone_hash = hashlib.sha256(phone_number.encode()).hexdigest()[:8]
+            logger.error(f"  Phone: {phone_hash}")
         if recovery_action:
             logger.info(f"  Recovery: {recovery_action}")
         
@@ -242,7 +245,7 @@ class ErrorTracker:
                     'error_type': error.error_type,
                     'message': error.error_message[:100] + '...' if len(error.error_message) > 100 else error.error_message,
                     'session_id': error.session_id,
-                    'phone_number': error.phone_number,
+                    'phone_hash': hashlib.sha256(error.phone_number.encode()).hexdigest()[:8] if error.phone_number else None,
                     'recovery_action': error.recovery_action
                 }
                 for error in recent_errors[-10:]  # Last 10 errors
