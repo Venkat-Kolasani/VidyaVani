@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidyaVani Processing Pipeline Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #0a0e27;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .dashboard-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 3em;
+            font-weight: 300;
+            background: linear-gradient(45deg, #4CAF50, #2196F3, #FF9800);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.8;
+            font-size: 1.2em;
+        }
+
+        .pipeline-flow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 50px 20px;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .pipeline-step {
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            min-width: 200px;
+            text-align: center;
+            transition: all 0.5s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .pipeline-step.active {
+            border-color: #4CAF50;
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.3);
+            transform: scale(1.05);
+        }
+
+        .pipeline-step.processing {
+            border-color: #FF9800;
+            box-shadow: 0 0 30px rgba(255, 152, 0, 0.3);
+            animation: processingPulse 2s infinite;
+        }
+
+        .pipeline-step.completed {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.2);
+        }
+
+        .pipeline-step.error {
+            border-color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+            box-shadow: 0 0 20px rgba(244, 67, 54, 0.2);
+        }
+
+        @keyframes processingPulse {
+            0%, 100% { 
+                box-shadow: 0 0 30px rgba(255, 152, 0, 0.3);
+                transform: scale(1.05);
+            }
+            50% { 
+                box-shadow: 0 0 50px rgba(255, 152, 0, 0.6);
+                transform: scale(1.08);
+            }
+        }
+
+        .step-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s ease;
+            opacity: 0;
+        }
+
+        .pipeline-step.processing .step-icon::before {
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); opacity: 0; }
+        }
+
+        .step-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .step-description {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .step-timing {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .step-details {
+            font-size: 0.8em;
+            opacity: 0.6;
+            margin-top: 10px;
+        }
+
+        .flow-arrow {
+            font-size: 2em;
+            color: rgba(255, 255, 255, 0.3);
+            animation: flowPulse 3s infinite;
+        }
+
+        @keyframes flowPulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.2); }
+        }
+
+        .metrics-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            min-width: 250px;
+            backdrop-filter: blur(10px);
+        }
+
+        .metrics-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #4CAF50;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric-label {
+            opacity: 0.8;
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .status-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            min-width: 200px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .status-ready { background-color: #4CAF50; }
+        .status-processing { background-color: #FF9800; animation: blink 1s infinite; }
+        .status-error { background-color: #f44336; }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .controls-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .question-display {
+            position: fixed;
+            bottom: 100px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: #4CAF50;
+        }
+
+        .response-text {
+            font-size: 1em;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(76, 175, 80, 0.6);
+            border-radius: 50%;
+            animation: float 6s infinite linear;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-10vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .pipeline-flow {
+                flex-direction: column;
+                padding: 30px 10px;
+            }
+            
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+            
+            .metrics-panel, .status-panel {
+                position: relative;
+                top: auto;
+                right: auto;
+                left: auto;
+                margin: 10px;
+                width: calc(100% - 40px);
+            }
+            
+            .controls-panel {
+                position: relative;
+                bottom: auto;
+                left: auto;
+                transform: none;
+                margin: 20px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Animated background particles -->
+        <div class="particles" id="particles"></div>
+
+        <div class="header">
+            <h1>🚀 VidyaVani Processing Pipeline</h1>
+            <p>Real-time visualization of AI-powered IVR processing</p>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="status-panel">
+            <div class="metrics-title">System Status</div>
+            <div class="status-indicator">
+                <div class="status-dot status-ready" id="system-status"></div>
+                <span id="system-status-text">Ready</span>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="connection-status"></div>
+                <span id="connection-status-text">Connected</span>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="api-status"></div>
+                <span id="api-status-text">APIs Ready</span>
+            </div>
+        </div>
+
+        <!-- Metrics Panel -->
+        <div class="metrics-panel">
+            <div class="metrics-title">Performance Metrics</div>
+            <div class="metric-item">
+                <span class="metric-label">Total Time:</span>
+                <span class="metric-value" id="total-time">-</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Target:</span>
+                <span class="metric-value">< 8.0s</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Questions:</span>
+                <span class="metric-value" id="question-count">0</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Success Rate:</span>
+                <span class="metric-value" id="success-rate">100%</span>
+            </div>
+        </div>
+
+        <!-- Pipeline Flow -->
+        <div class="pipeline-flow">
+            <!-- Step 1: Voice Input -->
+            <div class="pipeline-step" id="step-voice">
+                <div class="step-icon">🎤</div>
+                <div class="step-title">Voice Input</div>
+                <div class="step-description">Student asks question via phone call</div>
+                <div class="step-timing" id="voice-timing">-</div>
+                <div class="step-details" id="voice-details">Waiting for input...</div>
+            </div>
+
+            <div class="flow-arrow">→</div>
+
+            <!-- Step 2: Speech-to-Text -->
+            <div class="pipeline-step" id="step-stt">
+                <div class="step-icon">🔤</div>
+                <div class="step-title">Speech-to-Text</div>
+                <div class="step-description">Google Cloud STT converts audio to text</div>
+                <div class="step-timing" id="stt-timing">-</div>
+                <div class="step-details" id="stt-details">Ready for processing</div>
+            </div>
+
+            <div class="flow-arrow">→</div>
+
+            <!-- Step 3: RAG Engine -->
+            <div class="pipeline-step" id="step-rag">
+                <div class="step-icon">🧠</div>
+                <div class="step-title">RAG Engine</div>
+                <div class="step-description">FAISS search + GPT-5-nano generation</div>
+                <div class="step-timing" id="rag-timing">-</div>
+                <div class="step-details" id="rag-details">NCERT content ready</div>
+            </div>
+
+            <div class="flow-arrow">→</div>
+
+            <!-- Step 4: Text-to-Speech -->
+            <div class="pipeline-step" id="step-tts">
+                <div class="step-icon">🔊</div>
+                <div class="step-title">Text-to-Speech</div>
+                <div class="step-description">Google Cloud TTS generates audio</div>
+                <div class="step-timing" id="tts-timing">-</div>
+                <div class="step-details" id="tts-details">Voice synthesis ready</div>
+            </div>
+
+            <div class="flow-arrow">→</div>
+
+            <!-- Step 5: Response Delivery -->
+            <div class="pipeline-step" id="step-delivery">
+                <div class="step-icon">📞</div>
+                <div class="step-title">Response Delivery</div>
+                <div class="step-description">Audio delivered via Exotel IVR</div>
+                <div class="step-timing" id="delivery-timing">-</div>
+                <div class="step-details" id="delivery-details">Ready to deliver</div>
+            </div>
+        </div>
+
+        <!-- Question and Response Display -->
+        <div class="question-display" id="question-display">
+            <div class="question-text" id="question-text"></div>
+            <div class="response-text" id="response-text"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-panel">
+            <button class="control-btn" onclick="simulateProcessing()">🎯 Simulate Processing</button>
+            <button class="control-btn" onclick="resetPipeline()">🔄 Reset Pipeline</button>
+            <button class="control-btn" onclick="toggleAutoDemo()">⚡ Auto Demo</button>
+            <button class="control-btn" onclick="exportMetrics()">📊 Export Data</button>
+        </div>
+    </div>
+
+    <script>
+        let isProcessing = false;
+        let processingStartTime = null;
+        let stepTimings = {};
+        let questionCount = 0;
+        let successCount = 0;
+        let autoDemo = false;
+        let autoDemoInterval = null;
+
+        // Demo questions for simulation
+        const demoQuestions = [
+            "What is reflection of light?",
+            "How do plants make their food?",
+            "What happens when acid reacts with base?",
+            "How does the heart pump blood?",
+            "What is Ohm's law?",
+            "Explain the process of photosynthesis"
+        ];
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeParticles();
+            updateSystemStatus();
+            resetPipeline();
+        });
+
+        function initializeParticles() {
+            const particlesContainer = document.getElementById('particles');
+            
+            // Create floating particles
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    createParticle();
+                }, i * 300);
+            }
+            
+            // Continue creating particles
+            setInterval(createParticle, 1000);
+        }
+
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 2 + 's';
+            particle.style.animationDuration = (4 + Math.random() * 4) + 's';
+            
+            document.getElementById('particles').appendChild(particle);
+            
+            // Remove particle after animation
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 8000);
+        }
+
+        function updateSystemStatus() {
+            // Simulate system status checks
+            document.getElementById('system-status').className = 'status-dot status-ready';
+            document.getElementById('system-status-text').textContent = 'Ready';
+            
+            document.getElementById('connection-status').className = 'status-dot status-ready';
+            document.getElementById('connection-status-text').textContent = 'Connected';
+            
+            document.getElementById('api-status').className = 'status-dot status-ready';
+            document.getElementById('api-status-text').textContent = 'APIs Ready';
+        }
+
+        async function simulateProcessing() {
+            if (isProcessing) return;
+            
+            isProcessing = true;
+            processingStartTime = Date.now();
+            questionCount++;
+            
+            // Update system status
+            document.getElementById('system-status').className = 'status-dot status-processing';
+            document.getElementById('system-status-text').textContent = 'Processing';
+            
+            // Select random demo question
+            const question = demoQuestions[Math.floor(Math.random() * demoQuestions.length)];
+            
+            // Show question
+            showQuestion(question);
+            
+            try {
+                // Step 1: Voice Input
+                await processStep('step-voice', 'Voice received', 0.5);
+                
+                // Step 2: Speech-to-Text
+                await processStep('step-stt', 'Converting to text...', 1.2);
+                
+                // Step 3: RAG Engine
+                await processStep('step-rag', 'Searching NCERT + GPT-5-nano...', 2.8);
+                
+                // Step 4: Text-to-Speech
+                await processStep('step-tts', 'Generating audio...', 1.1);
+                
+                // Step 5: Response Delivery
+                await processStep('step-delivery', 'Delivering via Exotel...', 0.4);
+                
+                // Show success
+                successCount++;
+                showResponse("Light reflection occurs when light rays bounce back from a surface. The angle of incidence equals the angle of reflection, which is why we can see ourselves in mirrors.");
+                
+            } catch (error) {
+                console.error('Processing error:', error);
+                document.getElementById('system-status').className = 'status-dot status-error';
+                document.getElementById('system-status-text').textContent = 'Error';
+            }
+            
+            // Update metrics
+            updateMetrics();
+            
+            // Reset system status
+            setTimeout(() => {
+                document.getElementById('system-status').className = 'status-dot status-ready';
+                document.getElementById('system-status-text').textContent = 'Ready';
+                isProcessing = false;
+            }, 2000);
+        }
+
+        async function processStep(stepId, details, duration) {
+            const step = document.getElementById(stepId);
+            const detailsEl = document.getElementById(stepId.replace('step-', '') + '-details');
+            const timingEl = document.getElementById(stepId.replace('step-', '') + '-timing');
+            
+            // Start processing
+            step.classList.remove('completed', 'error');
+            step.classList.add('processing');
+            detailsEl.textContent = details;
+            
+            // Simulate processing time
+            await sleep(duration * 1000);
+            
+            // Complete step
+            step.classList.remove('processing');
+            step.classList.add('completed');
+            timingEl.textContent = duration.toFixed(1) + 's';
+            stepTimings[stepId] = duration;
+            
+            detailsEl.textContent = 'Completed';
+        }
+
+        function showQuestion(question) {
+            const questionDisplay = document.getElementById('question-display');
+            const questionText = document.getElementById('question-text');
+            
+            questionText.textContent = `Question: "${question}"`;
+            questionDisplay.style.display = 'block';
+        }
+
+        function showResponse(response) {
+            const responseText = document.getElementById('response-text');
+            responseText.textContent = `Response: ${response}`;
+        }
+
+        function updateMetrics() {
+            const totalTime = (Date.now() - processingStartTime) / 1000;
+            const successRate = questionCount > 0 ? (successCount / questionCount * 100).toFixed(1) : 100;
+            
+            document.getElementById('total-time').textContent = totalTime.toFixed(1) + 's';
+            document.getElementById('question-count').textContent = questionCount;
+            document.getElementById('success-rate').textContent = successRate + '%';
+        }
+
+        function resetPipeline() {
+            const steps = ['step-voice', 'step-stt', 'step-rag', 'step-tts', 'step-delivery'];
+            
+            steps.forEach(stepId => {
+                const step = document.getElementById(stepId);
+                step.classList.remove('processing', 'completed', 'error');
+                
+                const timingEl = document.getElementById(stepId.replace('step-', '') + '-timing');
+                timingEl.textContent = '-';
+                
+                const detailsEl = document.getElementById(stepId.replace('step-', '') + '-details');
+                detailsEl.textContent = getDefaultDetails(stepId);
+            });
+            
+            document.getElementById('question-display').style.display = 'none';
+            stepTimings = {};
+        }
+
+        function getDefaultDetails(stepId) {
+            const defaults = {
+                'step-voice': 'Waiting for input...',
+                'step-stt': 'Ready for processing',
+                'step-rag': 'NCERT content ready',
+                'step-tts': 'Voice synthesis ready',
+                'step-delivery': 'Ready to deliver'
+            };
+            return defaults[stepId] || 'Ready';
+        }
+
+        function toggleAutoDemo() {
+            autoDemo = !autoDemo;
+            
+            if (autoDemo) {
+                autoDemoInterval = setInterval(() => {
+                    if (!isProcessing) {
+                        simulateProcessing();
+                    }
+                }, 8000);
+            } else {
+                if (autoDemoInterval) {
+                    clearInterval(autoDemoInterval);
+                    autoDemoInterval = null;
+                }
+            }
+        }
+
+        function exportMetrics() {
+            const metrics = {
+                timestamp: new Date().toISOString(),
+                total_questions: questionCount,
+                success_count: successCount,
+                success_rate: questionCount > 0 ? (successCount / questionCount * 100) : 100,
+                step_timings: stepTimings,
+                system_status: 'operational'
+            };
+            
+            const blob = new Blob([JSON.stringify(metrics, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vidyavani_pipeline_metrics_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === ' ') {
+                e.preventDefault();
+                simulateProcessing();
+            } else if (e.key === 'r') {
+                resetPipeline();
+            } else if (e.key === 'a') {
+                toggleAutoDemo();
+            }
+        });
+    </script>
+</body>
+</html>

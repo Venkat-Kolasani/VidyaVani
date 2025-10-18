@@ -25,6 +25,7 @@ from src.storage.audio_storage import register_audio_routes
 from src.utils.performance_tracker import performance_tracker
 from src.utils.error_tracker import error_tracker
 from src.utils.logging_config import setup_logging
+from src.utils.call_recorder import call_recorder
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -82,7 +83,11 @@ def index():
             'performance_alerts': '/api/performance/alerts',
             'error_summary': '/api/errors/summary',
             'debugging_report': '/api/errors/debugging-report',
-            'dashboard_page': '/dashboard'
+            'dashboard_page': '/dashboard',
+            'demo_simulator': '/demo/simulator',
+            'processing_dashboard': '/demo/processing-dashboard',
+            'call_recordings': '/api/demo/recordings',
+            'demo_summary': '/api/demo/summary'
         }
     })
 
@@ -952,6 +957,245 @@ def export_error_report():
     except Exception as e:
         logger.error(f"Error exporting error report: {str(e)}")
         return jsonify({'error': 'Failed to export error report'}), 500
+
+# Demo System and Presentation Tools Endpoints
+
+@app.route('/demo/simulator', methods=['GET'])
+def demo_simulator_page():
+    """Serve the demo simulator HTML page"""
+    try:
+        return render_template('demo_simulator.html')
+    except Exception as e:
+        logger.error(f"Error serving demo simulator page: {str(e)}")
+        return f"<h1>Demo Simulator Error</h1><p>Could not load demo simulator: {str(e)}</p>", 500
+
+@app.route('/demo/processing-dashboard', methods=['GET'])
+def processing_dashboard_page():
+    """Serve the processing pipeline dashboard HTML page"""
+    try:
+        return render_template('processing_dashboard.html')
+    except Exception as e:
+        logger.error(f"Error serving processing dashboard page: {str(e)}")
+        return f"<h1>Processing Dashboard Error</h1><p>Could not load processing dashboard: {str(e)}</p>", 500
+
+@app.route('/api/demo/recordings', methods=['GET'])
+def get_demo_recordings():
+    """Get list of demo call recordings"""
+    try:
+        demo_only = request.args.get('demo_only', 'true').lower() == 'true'
+        limit = request.args.get('limit', 50, type=int)
+        
+        recordings = call_recorder.list_recordings(demo_only=demo_only, limit=limit)
+        
+        recordings_data = []
+        for recording in recordings:
+            recordings_data.append({
+                'recording_id': recording.recording_id,
+                'phone_number': recording.phone_number,
+                'session_id': recording.session_id,
+                'start_time': recording.start_time.isoformat(),
+                'end_time': recording.end_time.isoformat() if recording.end_time else None,
+                'duration_seconds': recording.duration_seconds,
+                'language': recording.language,
+                'questions_count': len(recording.questions_asked),
+                'responses_count': len(recording.responses_given),
+                'audio_files_count': len(recording.audio_files),
+                'call_status': recording.call_status,
+                'demo_mode': recording.demo_mode,
+                'created_at': recording.created_at.isoformat()
+            })
+        
+        return jsonify({
+            'recordings': recordings_data,
+            'total_count': len(recordings_data),
+            'demo_only': demo_only
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting demo recordings: {str(e)}")
+        return jsonify({'error': 'Failed to get demo recordings'}), 500
+
+@app.route('/api/demo/recordings/<recording_id>', methods=['GET'])
+def get_demo_recording_details(recording_id):
+    """Get detailed information about a specific recording"""
+    try:
+        recording = call_recorder.get_recording(recording_id)
+        
+        if not recording:
+            return jsonify({'error': 'Recording not found'}), 404
+        
+        recording_data = {
+            'recording_id': recording.recording_id,
+            'phone_number': recording.phone_number,
+            'session_id': recording.session_id,
+            'start_time': recording.start_time.isoformat(),
+            'end_time': recording.end_time.isoformat() if recording.end_time else None,
+            'duration_seconds': recording.duration_seconds,
+            'language': recording.language,
+            'questions_asked': recording.questions_asked,
+            'responses_given': recording.responses_given,
+            'audio_files': recording.audio_files,
+            'processing_metrics': recording.processing_metrics,
+            'call_status': recording.call_status,
+            'demo_mode': recording.demo_mode,
+            'created_at': recording.created_at.isoformat()
+        }
+        
+        return jsonify(recording_data)
+    
+    except Exception as e:
+        logger.error(f"Error getting recording details: {str(e)}")
+        return jsonify({'error': 'Failed to get recording details'}), 500
+
+@app.route('/api/demo/recordings/<recording_id>/export', methods=['POST'])
+def export_demo_recording(recording_id):
+    """Export a demo recording to file"""
+    try:
+        data = request.get_json() or {}
+        export_path = data.get('export_path')
+        
+        exported_path = call_recorder.export_recording(recording_id, export_path)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Recording exported successfully',
+            'filepath': exported_path
+        })
+    
+    except Exception as e:
+        logger.error(f"Error exporting recording: {str(e)}")
+        return jsonify({'error': 'Failed to export recording'}), 500
+
+@app.route('/api/demo/summary', methods=['GET'])
+def get_demo_summary():
+    """Get comprehensive demo summary for presentation"""
+    try:
+        summary = call_recorder.create_demo_summary()
+        
+        # Add additional system metrics
+        performance_metrics = performance_tracker.get_performance_summary()
+        
+        enhanced_summary = {
+            **summary,
+            'system_performance': {
+                'total_calls': performance_metrics['system_metrics']['total_calls'],
+                'average_response_time': performance_metrics['system_metrics'].get('average_response_time', 0),
+                'success_rate': performance_metrics['system_metrics'].get('success_rate', 100),
+                'uptime_hours': performance_metrics.get('uptime_seconds', 0) / 3600
+            },
+            'demo_questions_available': len(session_manager.get_demo_questions()),
+            'cached_responses': len(session_manager.demo_cache),
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }
+        
+        return jsonify(enhanced_summary)
+    
+    except Exception as e:
+        logger.error(f"Error getting demo summary: {str(e)}")
+        return jsonify({'error': 'Failed to get demo summary'}), 500
+
+@app.route('/api/demo/start-recording', methods=['POST'])
+def start_demo_recording():
+    """Start recording a demo call session"""
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        session_id = data.get('session_id')
+        language = data.get('language', 'english')
+        
+        if not all([phone_number, session_id]):
+            return jsonify({'error': 'phone_number and session_id are required'}), 400
+        
+        recording_id = call_recorder.start_recording(
+            phone_number=phone_number,
+            session_id=session_id,
+            language=language,
+            demo_mode=True
+        )
+        
+        return jsonify({
+            'success': True,
+            'recording_id': recording_id,
+            'message': 'Demo recording started'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error starting demo recording: {str(e)}")
+        return jsonify({'error': 'Failed to start demo recording'}), 500
+
+@app.route('/api/demo/end-recording', methods=['POST'])
+def end_demo_recording():
+    """End a demo call recording"""
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        status = data.get('status', 'completed')
+        
+        if not phone_number:
+            return jsonify({'error': 'phone_number is required'}), 400
+        
+        recording_id = call_recorder.end_recording(phone_number, status)
+        
+        if recording_id:
+            return jsonify({
+                'success': True,
+                'recording_id': recording_id,
+                'message': 'Demo recording ended'
+            })
+        else:
+            return jsonify({'error': 'No active recording found'}), 404
+    
+    except Exception as e:
+        logger.error(f"Error ending demo recording: {str(e)}")
+        return jsonify({'error': 'Failed to end demo recording'}), 500
+
+@app.route('/api/demo/curated-questions', methods=['GET'])
+def get_curated_demo_questions():
+    """Get the 20 curated demo questions with categories"""
+    try:
+        # Get demo questions from session manager
+        questions = session_manager.get_demo_questions()
+        qa_pairs = session_manager.get_demo_qa_pairs()
+        
+        # Categorize questions
+        categorized_questions = {
+            'physics': [],
+            'chemistry': [],
+            'biology': []
+        }
+        
+        # Simple categorization based on keywords
+        physics_keywords = ['light', 'reflection', 'mirror', 'current', 'magnetic', 'motor', 'ohm', 'refraction']
+        chemistry_keywords = ['acid', 'base', 'soap', 'metal', 'corrosion', 'equation', 'carbon dioxide', 'ph']
+        biology_keywords = ['plant', 'food', 'kidney', 'heart', 'blood', 'photosynthesis', 'breathe', 'reproduction']
+        
+        for i, (question, response) in enumerate(qa_pairs):
+            question_lower = question.lower()
+            
+            category = 'biology'  # default
+            if any(keyword in question_lower for keyword in physics_keywords):
+                category = 'physics'
+            elif any(keyword in question_lower for keyword in chemistry_keywords):
+                category = 'chemistry'
+            
+            categorized_questions[category].append({
+                'id': i + 1,
+                'question': question,
+                'response': response,
+                'category': category
+            })
+        
+        return jsonify({
+            'total_questions': len(questions),
+            'categories': categorized_questions,
+            'physics_count': len(categorized_questions['physics']),
+            'chemistry_count': len(categorized_questions['chemistry']),
+            'biology_count': len(categorized_questions['biology'])
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting curated demo questions: {str(e)}")
+        return jsonify({'error': 'Failed to get curated demo questions'}), 500
 
 if __name__ == '__main__':
     # Ensure logs directory exists

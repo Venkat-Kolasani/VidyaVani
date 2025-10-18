@@ -16,6 +16,7 @@ from src.ivr.processing_pipeline import IVRProcessingPipeline
 from src.ivr.error_recovery_handler import IVRErrorRecoveryHandler
 from src.utils.error_handler import error_handler, ErrorType, with_retry, RetryConfig
 from src.utils.error_tracker import error_tracker
+from src.utils.call_recorder import call_recorder
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,18 @@ class IVRHandler:
             session.call_sid = call_sid
             session.call_active = True
             
+            # Start call recording for demo purposes
+            try:
+                recording_id = call_recorder.start_recording(
+                    phone_number=from_number,
+                    session_id=session.session_id,
+                    language='english',  # Default, will be updated when language is selected
+                    demo_mode=True  # All calls are recorded as demo for presentation
+                )
+                logger.info(f"Started call recording {recording_id} for {from_number}")
+            except Exception as recording_error:
+                logger.warning(f"Failed to start call recording: {recording_error}")
+            
             # Update session menu state
             self.session_manager.update_session_menu(from_number, self.MENU_STATES['welcome'])
             
@@ -139,6 +152,15 @@ class IVRHandler:
                     ErrorType.SYSTEM_ERROR, language
                 )
                 return self._generate_error_xml(error_response['message'])
+            
+            # Update recording language
+            try:
+                active_recording = call_recorder.get_active_recording(from_number)
+                if active_recording:
+                    active_recording.language = language
+                    logger.debug(f"Updated recording language to {language} for {from_number}")
+            except Exception as recording_error:
+                logger.warning(f"Failed to update recording language: {recording_error}")
             
             # Update menu state
             self.session_manager.update_session_menu(from_number, self.MENU_STATES['grade_confirmation'])
@@ -366,6 +388,20 @@ class IVRHandler:
                 # Add to session history
                 self.session_manager.add_question_to_session(phone_number, result.question_text)
                 self.session_manager.add_response_to_session(phone_number, result.response_text)
+                
+                # Add to call recording
+                try:
+                    call_recorder.add_question(phone_number, result.question_text)
+                    call_recorder.add_response(phone_number, result.response_text)
+                    if hasattr(result, 'processing_time'):
+                        call_recorder.add_processing_metrics(phone_number, {
+                            'total_time': result.processing_time,
+                            'stt_time': getattr(result, 'stt_time', 0),
+                            'rag_time': getattr(result, 'rag_time', 0),
+                            'tts_time': getattr(result, 'tts_time', 0)
+                        })
+                except Exception as recording_error:
+                    logger.warning(f"Failed to add to call recording: {recording_error}")
                 
                 logger.info(f"Processing completed successfully for {phone_number}")
                 
@@ -756,6 +792,14 @@ class IVRHandler:
             
             # End session
             self.session_manager.end_session(from_number)
+            
+            # End call recording
+            try:
+                recording_id = call_recorder.end_recording(from_number, 'completed')
+                if recording_id:
+                    logger.info(f"Ended call recording {recording_id} for {from_number}")
+            except Exception as recording_error:
+                logger.warning(f"Failed to end call recording: {recording_error}")
             
             return Response('', mimetype='application/xml')
             
