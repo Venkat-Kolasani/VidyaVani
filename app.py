@@ -283,6 +283,7 @@ def get_session_stats():
 @app.route('/webhook/incoming-call', methods=['POST'])
 def webhook_incoming_call():
     """Handle incoming call webhook from Exotel"""
+    request_data = {}  # Initialize to prevent UnboundLocalError
     try:
         # Get request data from Exotel
         request_data = request.form.to_dict() if request.form else request.get_json() or {}
@@ -304,6 +305,7 @@ def webhook_incoming_call():
 @app.route('/webhook/language-selection', methods=['POST'])
 def webhook_language_selection():
     """Handle language selection webhook from Exotel"""
+    request_data = {}  # Initialize to prevent UnboundLocalError
     try:
         # Get request data from Exotel
         request_data = request.form.to_dict() if request.form else request.get_json() or {}
@@ -379,6 +381,7 @@ def webhook_interaction_mode_selection():
 @app.route('/webhook/question-recording', methods=['POST'])
 def webhook_question_recording():
     """Handle question recording webhook from Exotel"""
+    request_data = {}  # Initialize to prevent UnboundLocalError
     try:
         # Get request data from Exotel
         request_data = request.form.to_dict() if request.form else request.get_json() or {}
@@ -577,6 +580,9 @@ def demo_xml_responses():
 @app.route('/api/process-question', methods=['POST'])
 def process_question():
     """Process question asynchronously and return result"""
+    # Initialize variables to prevent UnboundLocalError
+    session_id = None
+    phone_number = None
     try:
         data = request.get_json()
         session_id = data.get('session_id')
