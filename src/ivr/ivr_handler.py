@@ -207,13 +207,13 @@ class IVRHandler:
     
     def handle_question_recording(self, request_data: Dict[str, Any]) -> Response:
         """
-        Handle recorded question from user
+        Handle recorded question from user with enhanced validation and error handling
         
         Args:
             request_data: Webhook payload with recording URL
             
         Returns:
-            XML response indicating processing
+            XML response indicating processing or error
         """
         try:
             from_number = request_data.get('From', '')
@@ -227,9 +227,24 @@ class IVRHandler:
             
             logger.info(f"Question recorded from {from_number}: {recording_url}, duration: {recording_duration}s")
             
+            # Validate recording
+            duration = float(recording_duration) if recording_duration else 0
+            
+            if duration < 1.0:  # Too short
+                logger.warning(f"Recording too short for {from_number}: {duration}s")
+                return self._generate_recording_too_short_xml(session.language)
+            
+            if duration > 16.0:  # Too long (should be limited by IVR but check anyway)
+                logger.warning(f"Recording too long for {from_number}: {duration}s")
+                return self._generate_recording_too_long_xml(session.language)
+            
+            if not recording_url:
+                logger.error(f"No recording URL provided for {from_number}")
+                return self._generate_recording_failed_xml(session.language)
+            
             # Store recording info in session
             session.current_recording_url = recording_url
-            session.current_recording_duration = float(recording_duration)
+            session.current_recording_duration = duration
             
             # Update menu state and processing status
             self.session_manager.update_session_menu(from_number, self.MENU_STATES['processing_question'])
@@ -301,13 +316,13 @@ class IVRHandler:
     
     def handle_response_delivery(self, request_data: Dict[str, Any]) -> Response:
         """
-        Handle delivery of AI-generated response
+        Handle delivery of AI-generated response with enhanced error handling
         
         Args:
             request_data: Webhook payload (response audio URL comes from session data)
             
         Returns:
-            XML response with follow-up menu
+            XML response with follow-up menu or appropriate error handling
         """
         try:
             from_number = request_data.get('From', '')
@@ -317,22 +332,39 @@ class IVRHandler:
             if not session:
                 return self._generate_error_xml("Session not found. Please call again.")
             
-            # Check if processing is complete
-            if session.processing_status != 'ready':
-                # Still processing, wait a bit more
-                if session.processing_status == 'error':
-                    logger.error(f"Processing failed for {from_number}")
-                    return self._generate_error_xml("Sorry, I couldn't process your question. Please try asking again.")
+            # Check processing status with enhanced handling
+            if session.processing_status == 'error':
+                logger.error(f"Processing failed for {from_number}")
+                return self._generate_processing_error_xml(session.language)
+            
+            elif session.processing_status in ['processing_audio', 'generating_response']:
+                # Still processing, check how long it's been
+                processing_time = (datetime.now() - session.last_activity).total_seconds()
+                
+                if processing_time > 12:  # Timeout after 12 seconds
+                    logger.error(f"Processing timeout for {from_number} after {processing_time}s")
+                    self.session_manager.update_processing_status(from_number, 'error')
+                    return self._generate_timeout_error_xml(session.language)
                 else:
-                    # Still processing, redirect back to processing
-                    logger.info(f"Still processing for {from_number}, status: {session.processing_status}")
-                    return Response(self._generate_processing_xml(session.language), mimetype='application/xml')
+                    # Still within acceptable time, continue waiting
+                    logger.info(f"Still processing for {from_number}, status: {session.processing_status}, time: {processing_time}s")
+                    return Response(self._generate_still_processing_xml(session.language), mimetype='application/xml')
+            
+            elif session.processing_status != 'ready':
+                # Unknown status, redirect back to processing
+                logger.warning(f"Unknown processing status for {from_number}: {session.processing_status}")
+                return Response(self._generate_processing_xml(session.language), mimetype='application/xml')
             
             # Get response data
             response_data = self.session_manager.get_current_response_data(from_number)
             if not response_data:
                 logger.error(f"No response data found for {from_number}")
-                return self._generate_error_xml("Sorry, I couldn't generate a response. Please try asking again.")
+                return self._generate_no_response_error_xml(session.language)
+            
+            # Validate response audio URL
+            if not response_data.response_audio_url:
+                logger.error(f"No audio URL found for {from_number}")
+                return self._generate_audio_error_xml(session.language, response_data.response_text)
             
             logger.info(f"Delivering response to {from_number}: {response_data.response_audio_url}")
             
@@ -642,18 +674,18 @@ class IVRHandler:
         if language == 'english':
             voice = 'alice'
             lang = 'en-IN'
-            message = "Thank you for your question. I am processing it now. Please wait a moment."
+            message = "Thank you for your question. I am processing it now. This may take up to 8 seconds. Please wait."
         else:  # telugu
             voice = 'alice'
             lang = 'en-IN'
-            message = "మీ ప్రశ్నకు ధన్యవాదాలు. నేను దానిని ఇప్పుడు ప్రాసెస్ చేస్తున్నాను. దయచేసి కాసేపు వేచి ఉండండి."
+            message = "మీ ప్రశ్నకు ధన్యవాదాలు. నేను దానిని ఇప్పుడు ప్రాసెస్ చేస్తున్నాను. దయచేసి 8 సెకన్లు వేచి ఉండండి."
         
         # Processing message
         say = ET.SubElement(root, 'Say', voice=voice, language=lang)
         say.text = message
         
-        # Pause for processing
-        pause = ET.SubElement(root, 'Pause', length='5')
+        # Pause for processing (shorter initial pause)
+        pause = ET.SubElement(root, 'Pause', length='3')
         
         # Redirect to check processing status
         redirect = ET.SubElement(root, 'Redirect', method='POST')
@@ -893,6 +925,212 @@ class IVRHandler:
         
         return ET.tostring(root, encoding='unicode')
     
+    def _generate_still_processing_xml(self, language: str) -> str:
+        """Generate XML for continued processing"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "Still processing your question. Please wait a few more seconds."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "మీ ప్రశ్నను ఇంకా ప్రాసెస్ చేస్తున్నాను. దయచేసి మరికొన్ని సెకన్లు వేచి ఉండండి."
+        
+        say = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say.text = message
+        
+        pause = ET.SubElement(root, 'Pause', length='3')
+        
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/response-delivery'
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_processing_error_xml(self, language: str) -> str:
+        """Generate XML for processing errors with retry option"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "I'm sorry, I had trouble processing your question. Press 1 to try asking again or Press 9 for main menu."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "క్షమించండి, మీ ప్రశ్నను ప్రాసెస్ చేయడంలో సమస్య ఉంది. మళ్లీ ప్రయత్నించడానికి 1 నొక్కండి లేదా మెయిన్ మెనూ కోసం 9 నొక్కండి."
+        
+        say = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say.text = message
+        
+        gather = ET.SubElement(root, 'Gather',
+                              numDigits='1',
+                              timeout='10',
+                              action='/webhook/error-recovery',
+                              method='POST')
+        
+        # Fallback to main menu
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/interaction-mode'
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_timeout_error_xml(self, language: str) -> str:
+        """Generate XML for processing timeout"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "I'm taking longer than expected to process your question. Press 1 to try a simpler question or Press 9 for main menu."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "మీ ప్రశ్నను ప్రాసెస్ చేయడానికి ఊహించిన దానికంటే ఎక్కువ సమయం పడుతోంది. సరళమైన ప్రశ్న అడగడానికి 1 నొక్కండి లేదా మెయిన్ మెనూ కోసం 9 నొక్కండి."
+        
+        say = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say.text = message
+        
+        gather = ET.SubElement(root, 'Gather',
+                              numDigits='1',
+                              timeout='10',
+                              action='/webhook/error-recovery',
+                              method='POST')
+        
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/interaction-mode'
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_no_response_error_xml(self, language: str) -> str:
+        """Generate XML when no response data is available"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "I couldn't generate an answer to your question. Please try asking a different Class 10 Science question."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "మీ ప్రశ్నకు సమాధానం రూపొందించలేకపోయాను. దయచేసి వేరే క్లాస్ 10 సైన్స్ ప్రశ్న అడగండి."
+        
+        say = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say.text = message
+        
+        # Redirect to question recording
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/interaction-mode-selection'
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_audio_error_xml(self, language: str, response_text: str) -> str:
+        """Generate XML when audio generation fails but we have text response"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            fallback_message = "I couldn't generate audio for my response, but here's the answer: "
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            fallback_message = "నా సమాధానానికి ఆడియో రూపొందించలేకపోయాను, కానీ ఇదిగో సమాధానం: "
+        
+        # Fallback to text-to-speech of the response
+        say_intro = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say_intro.text = fallback_message
+        
+        say_response = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say_response.text = response_text[:200]  # Limit length for voice delivery
+        
+        # Continue to follow-up menu
+        if language == 'english':
+            menu_message = "Press 1 for detailed explanation, Press 3 for new question, or Press 9 for main menu."
+        else:
+            menu_message = "వివరణ కోసం 1 నొక్కండి, కొత్త ప్రశ్న కోసం 3 నొక్కండి, లేదా మెయిన్ మెనూ కోసం 9 నొక్కండి."
+        
+        gather = ET.SubElement(root, 'Gather',
+                              numDigits='1',
+                              timeout='15',
+                              action='/webhook/follow-up-menu',
+                              method='POST')
+        
+        say_gather = ET.SubElement(gather, 'Say', voice=voice, language=lang)
+        say_gather.text = menu_message
+        
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/interaction-mode'
+        
+        return ET.tostring(root, encoding='unicode')
+
+    def _generate_recording_too_short_xml(self, language: str) -> str:
+        """Generate XML for recording too short error"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "Your recording was too short. Please speak for at least 2 seconds. Let's try again."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "మీ రికార్డింగ్ చాలా చిన్నది. దయచేసి కనీసం 2 సెకన్లు మాట్లాడండి. మళ్లీ ప్రయత్నిద్దాం."
+        
+        say = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say.text = message
+        
+        # Redirect back to question recording
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/interaction-mode-selection'
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_recording_too_long_xml(self, language: str) -> str:
+        """Generate XML for recording too long error"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "Your recording was too long. Please ask a shorter question in 15 seconds or less."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "మీ రికార్డింగ్ చాలా పొడవుగా ఉంది. దయచేసి 15 సెకన్లలో లేదా అంతకంటే తక్కువ సమయంలో చిన్న ప్రశ్న అడగండి."
+        
+        say = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say.text = message
+        
+        # Redirect back to question recording
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/interaction-mode-selection'
+        
+        return ET.tostring(root, encoding='unicode')
+    
+    def _generate_recording_failed_xml(self, language: str) -> str:
+        """Generate XML for recording failure"""
+        root = ET.Element('Response')
+        
+        if language == 'english':
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "There was a problem with your recording. Please try asking your question again."
+        else:
+            voice = 'alice'
+            lang = 'en-IN'
+            message = "మీ రికార్డింగ్‌లో సమస్య ఉంది. దయచేసి మీ ప్రశ్నను మళ్లీ అడగండి."
+        
+        say = ET.SubElement(root, 'Say', voice=voice, language=lang)
+        say.text = message
+        
+        # Redirect back to question recording
+        redirect = ET.SubElement(root, 'Redirect', method='POST')
+        redirect.text = '/webhook/interaction-mode-selection'
+        
+        return ET.tostring(root, encoding='unicode')
+
     def _generate_error_xml(self, error_message: str) -> str:
         """Generate error XML response"""
         root = ET.Element('Response')

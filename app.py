@@ -69,7 +69,10 @@ def index():
             'webhook_recording': '/webhook/question-recording',
             'webhook_response': '/webhook/response-delivery',
             'webhook_followup': '/webhook/follow-up-menu',
+            'webhook_error_recovery': '/webhook/error-recovery',
             'webhook_callend': '/webhook/call-end',
+            'api_process_question': '/api/process-question',
+            'api_processing_status': '/api/processing-status/<phone_number>',
             'demo_xml': '/demo/xml-responses',
             'api_docs': '/api/docs',
             'session_stats': '/api/session/stats',
@@ -431,6 +434,45 @@ def webhook_follow_up_menu():
         logger.error(f"Error in follow-up menu webhook: {str(e)}")
         return ivr_handler._generate_error_xml("Sorry, there was an error. Please try again.")
 
+@app.route('/webhook/error-recovery', methods=['POST'])
+def webhook_error_recovery():
+    """Handle error recovery menu selection"""
+    try:
+        # Get request data from Exotel
+        request_data = request.form.to_dict() if request.form else request.get_json() or {}
+        
+        logger.info(f"Error recovery webhook: {request_data}")
+        
+        from_number = request_data.get('From', '')
+        digits = request_data.get('Digits', '')
+        
+        # Get session
+        session = session_manager.get_session(from_number)
+        if not session:
+            return ivr_handler._generate_error_xml("Session not found. Please call again.")
+        
+        if digits == '1':  # Try asking again
+            # Reset to question recording
+            session_manager.update_session_menu(from_number, ivr_handler.MENU_STATES['recording_question'])
+            xml_response = ivr_handler._generate_question_recording_xml(session.language)
+            return Response(xml_response, mimetype='application/xml')
+        
+        elif digits == '9':  # Main menu
+            # Reset to interaction mode
+            session_manager.update_session_menu(from_number, ivr_handler.MENU_STATES['interaction_mode'])
+            xml_response = ivr_handler._generate_interaction_mode_xml(session.language)
+            return Response(xml_response, mimetype='application/xml')
+        
+        else:
+            # Invalid selection, redirect to interaction mode
+            session_manager.update_session_menu(from_number, ivr_handler.MENU_STATES['interaction_mode'])
+            xml_response = ivr_handler._generate_interaction_mode_xml(session.language)
+            return Response(xml_response, mimetype='application/xml')
+        
+    except Exception as e:
+        logger.error(f"Error in error recovery webhook: {str(e)}")
+        return ivr_handler._generate_error_xml("Sorry, there was an error. Please try calling again.")
+
 @app.route('/webhook/call-end', methods=['POST'])
 def webhook_call_end():
     """Handle call end webhook from Exotel"""
@@ -514,6 +556,104 @@ def demo_xml_responses():
     except Exception as e:
         logger.error(f"Error generating XML demo: {str(e)}")
         return jsonify({'error': 'Failed to generate XML demo'}), 500
+
+# Question Processing API Endpoints
+
+@app.route('/api/process-question', methods=['POST'])
+def process_question():
+    """Process question asynchronously and return result"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        audio_url = data.get('audio_url')
+        language = data.get('language', 'english')
+        phone_number = data.get('phone_number')
+        
+        if not all([session_id, audio_url, phone_number]):
+            return jsonify({
+                'error': 'session_id, audio_url, and phone_number are required'
+            }), 400
+        
+        # Validate language
+        if language not in ['english', 'telugu']:
+            return jsonify({'error': 'Language must be english or telugu'}), 400
+        
+        # Get or create session
+        session = session_manager.get_or_create_session(phone_number)
+        
+        # Update processing status
+        session_manager.update_processing_status(phone_number, 'processing_audio')
+        
+        # Process question synchronously (for demo simplicity)
+        from src.ivr.processing_pipeline import IVRProcessingPipeline
+        pipeline = IVRProcessingPipeline(Config())
+        
+        result = pipeline.process_question_sync(audio_url, language, phone_number)
+        
+        if result.success:
+            # Store response data in session
+            from src.session.session_manager import ResponseData
+            response_data = ResponseData(
+                question_text=result.question_text,
+                response_text=result.response_text,
+                response_audio_url=result.response_audio_url,
+                detailed_response_text=result.detailed_response_text,
+                detailed_audio_url=result.detailed_audio_url,
+                language=language
+            )
+            
+            session_manager.store_response_data(phone_number, response_data)
+            session_manager.update_processing_status(phone_number, 'ready')
+            
+            # Add to session history
+            session_manager.add_question_to_session(phone_number, result.question_text)
+            session_manager.add_response_to_session(phone_number, result.response_text)
+            
+            return jsonify({
+                'success': True,
+                'session_id': session_id,
+                'question_text': result.question_text,
+                'response_text': result.response_text,
+                'response_audio_url': result.response_audio_url,
+                'detailed_response_text': result.detailed_response_text,
+                'detailed_audio_url': result.detailed_audio_url,
+                'processing_time': result.processing_time
+            })
+        else:
+            session_manager.update_processing_status(phone_number, 'error')
+            return jsonify({
+                'success': False,
+                'session_id': session_id,
+                'error_message': result.error_message,
+                'processing_time': result.processing_time
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error processing question: {str(e)}")
+        return jsonify({'error': 'Failed to process question'}), 500
+
+@app.route('/api/processing-status/<phone_number>', methods=['GET'])
+def get_processing_status(phone_number):
+    """Get current processing status for a session"""
+    try:
+        session = session_manager.get_session(phone_number)
+        
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+        
+        response_data = session_manager.get_current_response_data(phone_number)
+        
+        return jsonify({
+            'phone_number': phone_number,
+            'processing_status': session.processing_status,
+            'has_response': response_data is not None,
+            'response_ready': session.processing_status == 'ready' and response_data is not None,
+            'last_activity': session.last_activity.isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting processing status: {str(e)}")
+        return jsonify({'error': 'Failed to get processing status'}), 500
 
 # Demo Question Cache API Endpoints
 
