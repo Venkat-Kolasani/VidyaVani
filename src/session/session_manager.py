@@ -6,7 +6,7 @@ Handles user sessions, conversation context, and demo question caching
 import time
 import hashlib
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from threading import Lock
 import logging
@@ -61,71 +61,64 @@ class SessionManager:
         self.sessions: Dict[str, UserSession] = {}
         self.demo_cache: Dict[str, str] = {}
         self.demo_audio_cache: Dict[str, bytes] = {}
+        self._demo_qa_pairs: List[tuple] = []  # Store original Q&A pairs for single source
         self._lock = Lock()
         self._initialize_demo_cache()
         logger.info("SessionManager initialized")
     
     def _initialize_demo_cache(self):
         """Initialize cache with 20 demo questions and responses"""
-        demo_questions = [
+        # Single source of truth for demo Q&A pairs
+        self._demo_qa_pairs = [
             # Physics Questions (7)
-            "What is reflection of light?",
-            "How does a concave mirror work?",
-            "What is the difference between AC and DC current?",
-            "Explain Ohm's law",
-            "What causes magnetic field around a wire?",
-            "How do electric motors work?",
-            "What is refraction of light?",
+            ("What is reflection of light?", 
+             "Reflection of light occurs when light rays bounce back from a surface. The angle of incidence equals the angle of reflection. This happens with mirrors and shiny surfaces."),
+            ("How does a concave mirror work?", 
+             "A concave mirror curves inward and can focus light rays to a point. It's used in car headlights and telescopes to concentrate light beams."),
+            ("What is the difference between AC and DC current?", 
+             "AC current changes direction periodically, while DC current flows in one direction. AC is used in homes, DC in batteries and electronics."),
+            ("Explain Ohm's law", 
+             "Ohm's law states that current equals voltage divided by resistance. It helps us calculate electrical values in circuits."),
+            ("What causes magnetic field around a wire?", 
+             "When electric current flows through a wire, it creates a magnetic field around it. This is the principle behind electromagnets."),
+            ("How do electric motors work?", 
+             "Electric motors convert electrical energy to mechanical energy using magnetic fields. They work by interaction between current and magnets."),
+            ("What is refraction of light?", 
+             "Refraction is the bending of light when it passes from one medium to another, like air to water. This makes objects appear bent in water."),
             
             # Chemistry Questions (7)
-            "What happens when acid reacts with base?",
-            "How is soap made from oil?",
-            "What are the properties of metals?",
-            "Explain the process of corrosion",
-            "What is a chemical equation?",
-            "How do we test for carbon dioxide gas?",
-            "What is the pH scale?",
+            ("What happens when acid reacts with base?", 
+             "When acid reacts with base, they neutralize each other to form salt and water. This is called neutralization reaction."),
+            ("How is soap made from oil?", 
+             "Soap is made by treating oils or fats with sodium hydroxide. This process is called saponification and produces soap and glycerol."),
+            ("What are the properties of metals?", 
+             "Metals are good conductors of heat and electricity, they are malleable, ductile, and have metallic luster. Most are solid at room temperature."),
+            ("Explain the process of corrosion", 
+             "Corrosion is the gradual destruction of metals by chemical reaction with environment. Rusting of iron is a common example."),
+            ("What is a chemical equation?", 
+             "A chemical equation shows reactants and products of a reaction using chemical formulas. It must be balanced to follow conservation of mass."),
+            ("How do we test for carbon dioxide gas?", 
+             "Carbon dioxide turns lime water milky. We can also use pH indicators as CO2 makes solutions slightly acidic."),
+            ("What is the pH scale?", 
+             "pH scale measures how acidic or basic a solution is. It ranges from 0 to 14, with 7 being neutral."),
             
             # Biology Questions (6)
-            "How do plants make their food?",
-            "What is the function of kidneys?",
-            "How does the heart pump blood?",
-            "What is photosynthesis?",
-            "How do we breathe?",
-            "What is reproduction in plants?"
+            ("How do plants make their food?", 
+             "Plants make food through photosynthesis. They use sunlight, carbon dioxide, and water to produce glucose and oxygen in their leaves."),
+            ("What is the function of kidneys?", 
+             "Kidneys filter waste products from blood and make urine. They also maintain water balance and blood pressure in our body."),
+            ("How does the heart pump blood?", 
+             "The heart has four chambers and pumps blood through two circuits - to lungs for oxygen and to body for nutrients."),
+            ("What is photosynthesis?", 
+             "Photosynthesis is how plants convert light energy into chemical energy. Chlorophyll in leaves captures sunlight to make glucose."),
+            ("How do we breathe?", 
+             "We breathe by expanding and contracting our lungs. Diaphragm muscle helps in this process to take in oxygen and remove carbon dioxide."),
+            ("What is reproduction in plants?", 
+             "Plants reproduce through flowers that contain male and female parts. Pollination leads to seed formation for new plants.")
         ]
         
-        # Pre-generate simple responses for demo
-        demo_responses = [
-            # Physics Responses
-            "Reflection of light occurs when light rays bounce back from a surface. The angle of incidence equals the angle of reflection. This happens with mirrors and shiny surfaces.",
-            "A concave mirror curves inward and can focus light rays to a point. It's used in car headlights and telescopes to concentrate light beams.",
-            "AC current changes direction periodically, while DC current flows in one direction. AC is used in homes, DC in batteries and electronics.",
-            "Ohm's law states that current equals voltage divided by resistance. It helps us calculate electrical values in circuits.",
-            "When electric current flows through a wire, it creates a magnetic field around it. This is the principle behind electromagnets.",
-            "Electric motors convert electrical energy to mechanical energy using magnetic fields. They work by interaction between current and magnets.",
-            "Refraction is the bending of light when it passes from one medium to another, like air to water. This makes objects appear bent in water.",
-            
-            # Chemistry Responses
-            "When acid reacts with base, they neutralize each other to form salt and water. This is called neutralization reaction.",
-            "Soap is made by treating oils or fats with sodium hydroxide. This process is called saponification and produces soap and glycerol.",
-            "Metals are good conductors of heat and electricity, they are malleable, ductile, and have metallic luster. Most are solid at room temperature.",
-            "Corrosion is the gradual destruction of metals by chemical reaction with environment. Rusting of iron is a common example.",
-            "A chemical equation shows reactants and products of a reaction using chemical formulas. It must be balanced to follow conservation of mass.",
-            "Carbon dioxide turns lime water milky. We can also use pH indicators as CO2 makes solutions slightly acidic.",
-            "pH scale measures how acidic or basic a solution is. It ranges from 0 to 14, with 7 being neutral.",
-            
-            # Biology Responses
-            "Plants make food through photosynthesis. They use sunlight, carbon dioxide, and water to produce glucose and oxygen in their leaves.",
-            "Kidneys filter waste products from blood and make urine. They also maintain water balance and blood pressure in our body.",
-            "The heart has four chambers and pumps blood through two circuits - to lungs for oxygen and to body for nutrients.",
-            "Photosynthesis is how plants convert light energy into chemical energy. Chlorophyll in leaves captures sunlight to make glucose.",
-            "We breathe by expanding and contracting our lungs. Diaphragm muscle helps in this process to take in oxygen and remove carbon dioxide.",
-            "Plants reproduce through flowers that contain male and female parts. Pollination leads to seed formation for new plants."
-        ]
-        
-        # Cache the demo Q&A pairs
-        for question, response in zip(demo_questions, demo_responses):
+        # Cache the demo Q&A pairs using hash keys
+        for question, response in self._demo_qa_pairs:
             question_hash = self._get_question_hash(question)
             self.demo_cache[question_hash] = response
         
@@ -260,31 +253,12 @@ class SessionManager:
             }
     
     def get_demo_questions(self) -> List[str]:
-        """Get list of all demo questions for testing"""
-        # Reverse lookup from cache to get original questions
-        demo_questions = [
-            "What is reflection of light?",
-            "How does a concave mirror work?",
-            "What is the difference between AC and DC current?",
-            "Explain Ohm's law",
-            "What causes magnetic field around a wire?",
-            "How do electric motors work?",
-            "What is refraction of light?",
-            "What happens when acid reacts with base?",
-            "How is soap made from oil?",
-            "What are the properties of metals?",
-            "Explain the process of corrosion",
-            "What is a chemical equation?",
-            "How do we test for carbon dioxide gas?",
-            "What is the pH scale?",
-            "How do plants make their food?",
-            "What is the function of kidneys?",
-            "How does the heart pump blood?",
-            "What is photosynthesis?",
-            "How do we breathe?",
-            "What is reproduction in plants?"
-        ]
-        return demo_questions
+        """Get list of all demo questions derived from cached pairs"""
+        return [question for question, _ in self._demo_qa_pairs]
+    
+    def get_demo_qa_pairs(self) -> List[Tuple[str, str]]:
+        """Get all demo question-answer pairs"""
+        return self._demo_qa_pairs.copy()
 
 # Global session manager instance
 session_manager = SessionManager()
