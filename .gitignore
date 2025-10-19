@@ -43,8 +43,11 @@ venv.bak/
 *.swo
 *~
 
-# Logs
+# Logs (keep structure, ignore content)
 logs/*.log
+logs/*.json
+logs/vidyavani_*.log
+!logs/.gitkeep
 *.log
 
 # Cache
@@ -57,11 +60,16 @@ data/faiss/
 *.pkl
 *.json.gz
 
-# Audio files
-audio_cache/
-*.wav
-*.mp3
-*.m4a
+# Audio files (temporary storage)
+audio_storage/*.wav
+audio_storage/*.mp3
+audio_storage/*.m4a
+!audio_storage/.gitkeep
+
+# Call recordings (temporary)
+call_recordings/audio/*.wav
+call_recordings/audio/*.mp3
+!call_recordings/audio/.gitkeep
 
 # Google Cloud credentials
 *.json

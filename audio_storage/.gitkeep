@@ -1,0 +1,4 @@
+# Audio Storage Directory
+
+This directory stores temporary audio files during IVR processing.
+Files are automatically cleaned up after processing.
