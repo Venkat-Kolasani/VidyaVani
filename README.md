@@ -180,7 +180,7 @@ Student Phone → Exotel IVR → Flask Backend
 - **Documentation**: Comprehensive technical and presentation materials
 
 ### 🎯 **Key Achievements**
-- **Technical**: RAG architecture with GPT-4o-mini + FAISS
+- **Technical**: RAG architecture with GPT-5-nano + FAISS
 - **Performance**: 94% accuracy, 98.5% uptime, $0.016 per question
 - **Innovation**: First voice-native AI education system for rural India
 - **Impact**: 87% test score improvement in pilot study
