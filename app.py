@@ -64,8 +64,15 @@ if Config.IS_PRODUCTION:
     
     logger.info("Production environment setup completed")
 
-# Initialize IVR handler
-ivr_handler = IVRHandler(session_manager)
+# Initialize IVR handler lazily to avoid blocking startup
+ivr_handler = None
+
+def get_ivr_handler():
+    """Get IVR handler instance (lazy initialization)"""
+    global ivr_handler
+    if ivr_handler is None:
+        ivr_handler = IVRHandler(session_manager)
+    return ivr_handler
 
 # Register audio serving routes
 register_audio_routes(app)
@@ -73,6 +80,15 @@ register_audio_routes(app)
 @app.route('/health', methods=['GET'])
 def health_check():
     """Basic health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'service': 'VidyaVani IVR Learning System'
+    })
+
+@app.route('/api/health', methods=['GET'])
+def api_health_check():
+    """Detailed health check endpoint"""
     try:
         # Import health monitor
         from src.utils.health_monitor import get_health_monitor
@@ -402,7 +418,7 @@ def webhook_incoming_call():
         logger.info(f"Incoming call webhook: {request_data}")
         
         # Handle the call using IVR handler
-        response = ivr_handler.handle_incoming_call(request_data)
+        response = get_ivr_handler().handle_incoming_call(request_data)
         
         return response
         
@@ -411,7 +427,7 @@ def webhook_incoming_call():
         error_tracker.track_error('Exotel_Incoming_Call', e, 
                                  phone_number=request_data.get('From', 'unknown'),
                                  recovery_action='Generated error XML response')
-        return ivr_handler._generate_error_xml("Sorry, there was a technical issue. Please try calling again.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was a technical issue. Please try calling again.")
 
 @app.route('/webhook/language-selection', methods=['POST'])
 def webhook_language_selection():
@@ -424,7 +440,7 @@ def webhook_language_selection():
         logger.info(f"Language selection webhook: {request_data}")
         
         # Handle language selection using IVR handler
-        response = ivr_handler.handle_language_selection(request_data)
+        response = get_ivr_handler().handle_language_selection(request_data)
         
         return response
         
@@ -433,7 +449,7 @@ def webhook_language_selection():
         error_tracker.track_error('Exotel_Language_Selection', e,
                                  phone_number=request_data.get('From', 'unknown'),
                                  recovery_action='Generated error XML response')
-        return ivr_handler._generate_error_xml("Sorry, there was an error. Please try again.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was an error. Please try again.")
 
 @app.route('/webhook/grade-confirmation', methods=['POST'])
 def webhook_grade_confirmation():
@@ -445,13 +461,13 @@ def webhook_grade_confirmation():
         logger.info(f"Grade confirmation webhook: {request_data}")
         
         # Handle grade confirmation using IVR handler
-        response = ivr_handler.handle_grade_confirmation(request_data)
+        response = get_ivr_handler().handle_grade_confirmation(request_data)
         
         return response
         
     except Exception as e:
         logger.error(f"Error in grade confirmation webhook: {str(e)}")
-        return ivr_handler._generate_error_xml("Sorry, there was an error. Please try again.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was an error. Please try again.")
 
 @app.route('/webhook/interaction-mode', methods=['POST'])
 def webhook_interaction_mode():
@@ -463,13 +479,13 @@ def webhook_interaction_mode():
         logger.info(f"Interaction mode redirect webhook: {request_data}")
         
         # Handle grade confirmation (which redirects to interaction mode)
-        response = ivr_handler.handle_grade_confirmation(request_data)
+        response = get_ivr_handler().handle_grade_confirmation(request_data)
         
         return response
         
     except Exception as e:
         logger.error(f"Error in interaction mode webhook: {str(e)}")
-        return ivr_handler._generate_error_xml("Sorry, there was an error. Please try again.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was an error. Please try again.")
 
 @app.route('/webhook/interaction-mode-selection', methods=['POST'])
 def webhook_interaction_mode_selection():
@@ -481,13 +497,13 @@ def webhook_interaction_mode_selection():
         logger.info(f"Interaction mode selection webhook: {request_data}")
         
         # Handle interaction mode selection using IVR handler
-        response = ivr_handler.handle_interaction_mode_selection(request_data)
+        response = get_ivr_handler().handle_interaction_mode_selection(request_data)
         
         return response
         
     except Exception as e:
         logger.error(f"Error in interaction mode selection webhook: {str(e)}")
-        return ivr_handler._generate_error_xml("Sorry, there was an error. Please try again.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was an error. Please try again.")
 
 @app.route('/webhook/question-recording', methods=['POST'])
 def webhook_question_recording():
@@ -500,7 +516,7 @@ def webhook_question_recording():
         logger.info(f"Question recording webhook: {request_data}")
         
         # Handle question recording using IVR handler
-        response = ivr_handler.handle_question_recording(request_data)
+        response = get_ivr_handler().handle_question_recording(request_data)
         
         return response
         
@@ -509,7 +525,7 @@ def webhook_question_recording():
         error_tracker.track_error('Exotel_Question_Recording', e,
                                  phone_number=request_data.get('From', 'unknown'),
                                  recovery_action='Generated error XML response')
-        return ivr_handler._generate_error_xml("Sorry, there was an error processing your question.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was an error processing your question.")
 
 @app.route('/webhook/recording-status', methods=['POST'])
 def webhook_recording_status():
@@ -537,13 +553,13 @@ def webhook_response_delivery():
         logger.info(f"Response delivery webhook: {request_data}")
         
         # Handle response delivery using IVR handler
-        response = ivr_handler.handle_response_delivery(request_data)
+        response = get_ivr_handler().handle_response_delivery(request_data)
         
         return response
         
     except Exception as e:
         logger.error(f"Error in response delivery webhook: {str(e)}")
-        return ivr_handler._generate_error_xml("Sorry, there was an error delivering the response.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was an error delivering the response.")
 
 @app.route('/webhook/follow-up-menu', methods=['POST'])
 def webhook_follow_up_menu():
@@ -555,13 +571,13 @@ def webhook_follow_up_menu():
         logger.info(f"Follow-up menu webhook: {request_data}")
         
         # Handle follow-up menu using IVR handler
-        response = ivr_handler.handle_follow_up_menu(request_data)
+        response = get_ivr_handler().handle_follow_up_menu(request_data)
         
         return response
         
     except Exception as e:
         logger.error(f"Error in follow-up menu webhook: {str(e)}")
-        return ivr_handler._generate_error_xml("Sorry, there was an error. Please try again.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was an error. Please try again.")
 
 @app.route('/webhook/error-recovery', methods=['POST'])
 def webhook_error_recovery():
@@ -578,29 +594,29 @@ def webhook_error_recovery():
         # Get session
         session = session_manager.get_session(from_number)
         if not session:
-            return ivr_handler._generate_error_xml("Session not found. Please call again.")
+            return get_ivr_handler()._generate_error_xml("Session not found. Please call again.")
         
         if digits == '1':  # Try asking again
             # Reset to question recording
-            session_manager.update_session_menu(from_number, ivr_handler.MENU_STATES['recording_question'])
-            xml_response = ivr_handler._generate_question_recording_xml(session.language)
+            session_manager.update_session_menu(from_number, get_ivr_handler().MENU_STATES['recording_question'])
+            xml_response = get_ivr_handler()._generate_question_recording_xml(session.language)
             return Response(xml_response, mimetype='application/xml')
         
         elif digits == '9':  # Main menu
             # Reset to interaction mode
-            session_manager.update_session_menu(from_number, ivr_handler.MENU_STATES['interaction_mode'])
-            xml_response = ivr_handler._generate_interaction_mode_xml(session.language)
+            session_manager.update_session_menu(from_number, get_ivr_handler().MENU_STATES['interaction_mode'])
+            xml_response = get_ivr_handler()._generate_interaction_mode_xml(session.language)
             return Response(xml_response, mimetype='application/xml')
         
         else:
             # Invalid selection, redirect to interaction mode
-            session_manager.update_session_menu(from_number, ivr_handler.MENU_STATES['interaction_mode'])
-            xml_response = ivr_handler._generate_interaction_mode_xml(session.language)
+            session_manager.update_session_menu(from_number, get_ivr_handler().MENU_STATES['interaction_mode'])
+            xml_response = get_ivr_handler()._generate_interaction_mode_xml(session.language)
             return Response(xml_response, mimetype='application/xml')
         
     except Exception as e:
         logger.error(f"Error in error recovery webhook: {str(e)}")
-        return ivr_handler._generate_error_xml("Sorry, there was an error. Please try calling again.")
+        return get_ivr_handler()._generate_error_xml("Sorry, there was an error. Please try calling again.")
 
 @app.route('/webhook/call-end', methods=['POST'])
 def webhook_call_end():
@@ -612,7 +628,7 @@ def webhook_call_end():
         logger.info(f"Call end webhook: {request_data}")
         
         # Handle call end using IVR handler
-        response = ivr_handler.handle_call_end(request_data)
+        response = get_ivr_handler().handle_call_end(request_data)
         
         return response
         
@@ -632,18 +648,18 @@ def demo_xml_responses():
         session_manager.update_session_language(demo_phone, 'english')
         
         examples = {
-            'welcome': ivr_handler._generate_welcome_xml(),
-            'grade_confirmation_english': ivr_handler._generate_grade_confirmation_xml('english'),
-            'grade_confirmation_telugu': ivr_handler._generate_grade_confirmation_xml('telugu'),
-            'interaction_mode_english': ivr_handler._generate_interaction_mode_xml('english'),
-            'interaction_mode_telugu': ivr_handler._generate_interaction_mode_xml('telugu'),
-            'question_recording_english': ivr_handler._generate_question_recording_xml('english'),
-            'question_recording_telugu': ivr_handler._generate_question_recording_xml('telugu'),
-            'processing_english': ivr_handler._generate_processing_xml('english'),
-            'processing_telugu': ivr_handler._generate_processing_xml('telugu'),
-            'response_delivery': ivr_handler._generate_response_delivery_xml('https://example.com/response.wav', 'english'),
-            'invalid_selection': ivr_handler._generate_invalid_selection_xml('language', 'english'),
-            'error_response': ivr_handler._generate_error_xml('This is a sample error message')
+            'welcome': get_ivr_handler()._generate_welcome_xml(),
+            'grade_confirmation_english': get_ivr_handler()._generate_grade_confirmation_xml('english'),
+            'grade_confirmation_telugu': get_ivr_handler()._generate_grade_confirmation_xml('telugu'),
+            'interaction_mode_english': get_ivr_handler()._generate_interaction_mode_xml('english'),
+            'interaction_mode_telugu': get_ivr_handler()._generate_interaction_mode_xml('telugu'),
+            'question_recording_english': get_ivr_handler()._generate_question_recording_xml('english'),
+            'question_recording_telugu': get_ivr_handler()._generate_question_recording_xml('telugu'),
+            'processing_english': get_ivr_handler()._generate_processing_xml('english'),
+            'processing_telugu': get_ivr_handler()._generate_processing_xml('telugu'),
+            'response_delivery': get_ivr_handler()._generate_response_delivery_xml('https://example.com/response.wav', 'english'),
+            'invalid_selection': get_ivr_handler()._generate_invalid_selection_xml('language', 'english'),
+            'error_response': get_ivr_handler()._generate_error_xml('This is a sample error message')
         }
         
         # Clean up demo session
