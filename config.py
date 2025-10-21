@@ -153,9 +153,16 @@ class Config:
         if credentials_json and not os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
             # Write credentials to temporary file for Google Cloud SDK
             import tempfile
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                f.write(credentials_json)
-                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = f.name
+            import json
+            try:
+                # Validate JSON format
+                json.loads(credentials_json)
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                    f.write(credentials_json)
+                    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = f.name
+                    print(f"Google Cloud credentials written to: {f.name}")
+            except json.JSONDecodeError as e:
+                print(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
         
         return os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
     

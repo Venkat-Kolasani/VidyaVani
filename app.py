@@ -37,6 +37,9 @@ from src.utils.load_balancer import setup_load_balancing
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Setup Google Cloud credentials
+Config.setup_google_credentials()
+
 # Configure logging with performance tracking
 setup_logging()
 logger = logging.getLogger(__name__)
