@@ -41,14 +41,36 @@ class SemanticSearchEngine:
         self.config = config
         self.knowledge_base = NCERTKnowledgeBase(config)
         
-        # Initialize knowledge base
-        self.knowledge_base.initialize_knowledge_base()
+        # Initialize knowledge base asynchronously to avoid blocking startup
+        import threading
+        self._initialization_thread = threading.Thread(
+            target=self._initialize_async,
+            daemon=True
+        )
+        self._initialization_thread.start()
         
         # Search parameters
         self.top_k = config.TOP_K_RETRIEVAL  # Default: 3
         self.min_similarity = 0.1  # Minimum similarity threshold
         
-        logger.info("Semantic search engine initialized")
+        logger.info("Semantic search engine initialized (knowledge base loading in background)")
+    
+    def is_ready(self) -> bool:
+        """Check if knowledge base is ready for searches"""
+        try:
+            stats = self.knowledge_base.search_engine.get_stats()
+            return stats['total_chunks'] > 0
+        except:
+            return False
+    
+    def _initialize_async(self):
+        """Initialize knowledge base in background thread"""
+        try:
+            logger.info("Starting background knowledge base initialization...")
+            self.knowledge_base.initialize_knowledge_base()
+            logger.info("Background knowledge base initialization completed")
+        except Exception as e:
+            logger.error(f"Error in background knowledge base initialization: {e}")
     
     def search(self, question: str, 
                subject_filter: Optional[str] = None,
@@ -67,6 +89,11 @@ class SemanticSearchEngine:
             List of tuples (ContentChunk, similarity_score) ordered by relevance
         """
         start_time = time.time()
+        
+        # Check if knowledge base is ready
+        if not self.is_ready():
+            logger.warning("Knowledge base not ready yet, returning empty results")
+            return []
         
         # Use provided parameters or defaults
         k = top_k or self.top_k
