@@ -371,11 +371,21 @@ class RequestMiddleware:
             
             # Generate request info
             request_id = getattr(g, 'request_id', str(uuid.uuid4()))
-            phone_number = (
-                request.form.get('From') or 
-                request.form.get('phone_number') or 
-                request.json.get('phone_number') if request.json else 'unknown'
-            )
+            
+            # Safely extract phone number
+            phone_number = 'unknown'
+            try:
+                phone_number = (
+                    request.form.get('From') or 
+                    request.form.get('phone_number') or 
+                    'unknown'
+                )
+                
+                # Try JSON data if available and content-type is correct
+                if request.is_json and request.json:
+                    phone_number = request.json.get('phone_number') or phone_number
+            except Exception:
+                phone_number = 'unknown'
             
             # Determine priority
             priority = 1  # normal
