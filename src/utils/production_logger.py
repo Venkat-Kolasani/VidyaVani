@@ -263,9 +263,22 @@ class RequestLogger:
             g.request_id = str(uuid.uuid4())
             g.start_time = datetime.utcnow()
             
-            # Extract session info
-            session_id = request.form.get('session_id') or request.json.get('session_id') if request.json else None
-            phone_number = request.form.get('From') or request.form.get('phone_number')
+            # Extract session info safely
+            session_id = None
+            phone_number = None
+            
+            try:
+                # Try form data first
+                session_id = request.form.get('session_id')
+                phone_number = request.form.get('From') or request.form.get('phone_number')
+                
+                # Try JSON data if available and content-type is correct
+                if request.is_json and request.json:
+                    session_id = session_id or request.json.get('session_id')
+                    phone_number = phone_number or request.json.get('phone_number')
+            except Exception:
+                # Ignore errors in session extraction
+                pass
             
             # Log request start
             self.production_logger.log_request(
