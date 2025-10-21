@@ -162,15 +162,37 @@ class ResponseGenerator:
             config: Application configuration
         """
         self.config = config
-        self.openai_client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
         
-        # Response parameters
-        self.model = config.OPENAI_MODEL  # gpt-4o-mini
-        self.max_tokens = config.OPENAI_MAX_TOKENS  # 150
-        self.temperature = config.OPENAI_TEMPERATURE  # 0.3
+        # Choose AI provider based on configuration
+        if config.USE_GEMINI and config.GOOGLE_GEMINI_API_KEY:
+            # Use Gemini with OpenAI-compatible interface
+            import sys
+            import os
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+            from utils.gemini_adapter import GeminiOpenAIClient
+            self.openai_client = GeminiOpenAIClient(
+                api_key=config.GOOGLE_GEMINI_API_KEY,
+                model=config.GEMINI_MODEL
+            )
+            self.model = config.GEMINI_MODEL
+            self.max_tokens = config.GEMINI_MAX_TOKENS
+            self.temperature = config.GEMINI_TEMPERATURE
+            logger.info(f"Using Google Gemini: {self.model}")
+        else:
+            # Use OpenAI or OpenRouter
+            client_kwargs = {"api_key": config.OPENAI_API_KEY}
+            if hasattr(config, 'OPENAI_BASE_URL') and config.OPENAI_BASE_URL:
+                client_kwargs["base_url"] = config.OPENAI_BASE_URL
+                logger.info(f"Using custom OpenAI base URL: {config.OPENAI_BASE_URL}")
+            
+            self.openai_client = openai.OpenAI(**client_kwargs)
+            self.model = config.OPENAI_MODEL
+            self.max_tokens = config.OPENAI_MAX_TOKENS
+            self.temperature = config.OPENAI_TEMPERATURE
+            logger.info(f"Using OpenAI/OpenRouter: {self.model}")
         
         # Adjust max_tokens for longer educational responses
-        self.max_response_tokens = 300  # Allow longer responses for education
+        self.max_response_tokens = max(300, self.max_tokens)  # Allow longer responses for education
         
         logger.info(f"Response generator initialized with model: {self.model}")
     

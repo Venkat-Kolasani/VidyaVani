@@ -46,8 +46,27 @@ class NCERTKnowledgeBase:
         """
         self.config = config
         
-        # Initialize OpenAI client for embeddings
-        self.openai_client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
+        # Initialize AI client for embeddings
+        if config.USE_GEMINI and config.GOOGLE_GEMINI_API_KEY:
+            # Use Gemini with OpenAI-compatible interface
+            import sys
+            import os
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+            from utils.gemini_adapter import GeminiOpenAIClient
+            self.openai_client = GeminiOpenAIClient(
+                api_key=config.GOOGLE_GEMINI_API_KEY,
+                model=config.GEMINI_MODEL
+            )
+            logger.info(f"Using Google Gemini for embeddings: {config.GEMINI_MODEL}")
+        else:
+            # Use OpenAI or OpenRouter (but OpenRouter doesn't support embeddings)
+            client_kwargs = {"api_key": config.OPENAI_API_KEY}
+            if hasattr(config, 'OPENAI_BASE_URL') and config.OPENAI_BASE_URL:
+                client_kwargs["base_url"] = config.OPENAI_BASE_URL
+                logger.info(f"Using custom OpenAI base URL for embeddings: {config.OPENAI_BASE_URL}")
+            
+            self.openai_client = openai.OpenAI(**client_kwargs)
+            logger.info("Using OpenAI for embeddings")
         
         # Initialize components
         self.content_processor = NCERTContentProcessor(config)

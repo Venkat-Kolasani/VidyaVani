@@ -34,11 +34,21 @@ class Config:
     EXOTEL_PHONE_NUMBER: str = os.getenv('EXOTEL_PHONE_NUMBER', '')
     EXOTEL_APP_ID: str = os.getenv('EXOTEL_APP_ID', '')
     
-    # OpenAI Configuration
+    # AI Configuration (supports OpenAI, OpenRouter, and Gemini)
     OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY', '')
-    OPENAI_MODEL: str = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')  # Cheapest model available
+    OPENAI_BASE_URL: str = os.getenv('OPENAI_BASE_URL', '')  # For OpenRouter or other providers
+    OPENAI_MODEL: str = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')  # Default model
     OPENAI_MAX_TOKENS: int = int(os.getenv('OPENAI_MAX_TOKENS', '150'))
     OPENAI_TEMPERATURE: float = float(os.getenv('OPENAI_TEMPERATURE', '0.3'))
+    
+    # Google Gemini Configuration (alternative to OpenAI)
+    GOOGLE_GEMINI_API_KEY: str = os.getenv('GOOGLE_GEMINI_API_KEY', '')
+    GEMINI_MODEL: str = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+    GEMINI_MAX_TOKENS: int = int(os.getenv('GEMINI_MAX_TOKENS', '500'))
+    GEMINI_TEMPERATURE: float = float(os.getenv('GEMINI_TEMPERATURE', '0.7'))
+    
+    # AI Provider Selection (auto-detect based on available keys)
+    USE_GEMINI: bool = bool(GOOGLE_GEMINI_API_KEY and (not OPENAI_API_KEY or OPENAI_API_KEY.strip() == ''))
     
     # LLM Configuration
     LLM_MODEL = os.getenv('LLM_MODEL', 'gpt-5-nano')  # Changed from gpt-4o-mini
@@ -108,9 +118,15 @@ class Config:
         required_keys = [
             'EXOTEL_ACCOUNT_SID',
             'EXOTEL_API_KEY', 
-            'EXOTEL_API_TOKEN',
-            'OPENAI_API_KEY'
+            'EXOTEL_API_TOKEN'
         ]
+        
+        # Require either OpenAI or Gemini API key
+        has_openai = bool(os.getenv('OPENAI_API_KEY', '').strip())
+        has_gemini = bool(os.getenv('GOOGLE_GEMINI_API_KEY', '').strip())
+        
+        if not has_openai and not has_gemini:
+            required_keys.append('OPENAI_API_KEY or GOOGLE_GEMINI_API_KEY')
         
         # Additional production requirements
         if cls.IS_PRODUCTION:

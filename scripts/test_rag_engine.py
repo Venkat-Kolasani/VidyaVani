@@ -30,16 +30,26 @@ def test_rag_engine():
         # Initialize configuration
         config = Config()
         
-        # Validate required API keys
-        if not config.OPENAI_API_KEY:
-            print("❌ ERROR: OPENAI_API_KEY not found in environment variables")
-            print("Please set your OpenAI API key in the .env file")
+        # Validate required API keys (either OpenAI or Gemini)
+        has_openai = bool(config.OPENAI_API_KEY and config.OPENAI_API_KEY.strip())
+        has_gemini = bool(config.GOOGLE_GEMINI_API_KEY and config.GOOGLE_GEMINI_API_KEY.strip())
+        
+        if not has_openai and not has_gemini:
+            print("❌ ERROR: Neither OPENAI_API_KEY nor GOOGLE_GEMINI_API_KEY found")
+            print("Please set either OpenAI or Google Gemini API key in the .env file")
             return False
         
         print("✅ Configuration loaded successfully")
-        print(f"   - OpenAI Model: {config.OPENAI_MODEL}")
-        print(f"   - Max Tokens: {config.OPENAI_MAX_TOKENS}")
-        print(f"   - Temperature: {config.OPENAI_TEMPERATURE}")
+        if config.USE_GEMINI:
+            print(f"   - AI Provider: Google Gemini")
+            print(f"   - Model: {config.GEMINI_MODEL}")
+            print(f"   - Max Tokens: {config.GEMINI_MAX_TOKENS}")
+            print(f"   - Temperature: {config.GEMINI_TEMPERATURE}")
+        else:
+            print(f"   - AI Provider: OpenAI")
+            print(f"   - Model: {config.OPENAI_MODEL}")
+            print(f"   - Max Tokens: {config.OPENAI_MAX_TOKENS}")
+            print(f"   - Temperature: {config.OPENAI_TEMPERATURE}")
         
         # Initialize RAG engine
         print(f"\n🤖 Initializing RAG Engine...")
