@@ -466,6 +466,17 @@
         <!-- Demo Questions (shown during question recording phase) -->
         <div class="demo-questions" id="demo-questions" style="display: none;">
             <h3>🎯 Quick Demo Questions</h3>
+            
+            <!-- Voice Recording Option -->
+            <div class="voice-recording" style="margin-bottom: 15px; padding: 10px; background: rgba(76, 175, 80, 0.1); border-radius: 8px;">
+                <button id="record-btn" class="question-btn" onclick="toggleRecording()" style="background: rgba(244, 67, 54, 0.2); border-color: #f44336;">
+                    🎤 Click to Record Your Question
+                </button>
+                <div id="recording-status" style="display: none; color: #f44336; margin-top: 5px; font-size: 0.9em;">
+                    🔴 Recording... Click again to stop
+                </div>
+            </div>
+            
             <div id="question-list">
                 <!-- Questions will be loaded here -->
             </div>
@@ -1008,6 +1019,122 @@
 
         function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Voice Recording Functionality
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        async function toggleRecording() {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        await processVoiceQuestion(audioBlob);
+                        
+                        // Stop all tracks to release microphone
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    
+                    document.getElementById('record-btn').textContent = '🛑 Stop Recording';
+                    document.getElementById('record-btn').style.background = 'rgba(76, 175, 80, 0.2)';
+                    document.getElementById('record-btn').style.borderColor = '#4CAF50';
+                    document.getElementById('recording-status').style.display = 'block';
+
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    alert('Could not access microphone. Please check permissions.');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                document.getElementById('record-btn').textContent = '🎤 Click to Record Your Question';
+                document.getElementById('record-btn').style.background = 'rgba(244, 67, 54, 0.2)';
+                document.getElementById('record-btn').style.borderColor = '#f44336';
+                document.getElementById('recording-status').style.display = 'none';
+            }
+        }
+
+        async function processVoiceQuestion(audioBlob) {
+            if (!callActive || isProcessing) return;
+
+            isProcessing = true;
+            document.getElementById('demo-questions').style.display = 'none';
+
+            // Show processing
+            updateCallStatus('status-processing', 'Processing Voice Question');
+            updateFlowStep(7);
+
+            updateScreenContent(`
+                <div class="menu-text">
+                    <strong>Voice Question Received</strong><br><br>
+                    🎤 Converting speech to text...<br>
+                    🤖 AI is processing your question...
+                </div>
+            `);
+
+            document.getElementById('processing-indicator').style.display = 'block';
+
+            try {
+                // Simulate voice processing (in real system, this would use Google Cloud STT)
+                await sleep(2000);
+                
+                // For demo, use a sample question
+                const sampleQuestions = [
+                    "What is reflection of light?",
+                    "How does a concave mirror work?",
+                    "What is the difference between AC and DC current?",
+                    "Explain Ohm's law"
+                ];
+                
+                const randomQuestion = sampleQuestions[Math.floor(Math.random() * sampleQuestions.length)];
+                
+                updateScreenContent(`
+                    <div class="menu-text">
+                        <strong>Speech Recognition Result:</strong><br>
+                        "${randomQuestion}"<br><br>
+                        🤖 AI is processing your question...
+                    </div>
+                `);
+
+                await sleep(1000);
+
+                // Get AI response
+                const response = await fetch('/api/demo/response', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: randomQuestion })
+                });
+
+                const responseData = await response.json();
+
+                if (responseData.response) {
+                    currentResponse = responseData.response;
+                    showResponse(randomQuestion, responseData.response);
+                } else {
+                    showError("Sorry, I don't have information about that topic. Please try another question.");
+                }
+
+            } catch (error) {
+                console.error('Error processing voice question:', error);
+                showError("There was an error processing your voice question. Please try again.");
+            }
+
+            isProcessing = false;
+            document.getElementById('processing-indicator').style.display = 'none';
         }
 
         // Keyboard shortcuts for demo
