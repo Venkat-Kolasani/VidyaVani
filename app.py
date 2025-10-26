@@ -183,7 +183,8 @@ def index():
     """Root endpoint - Serve the main frontend"""
     try:
         # Try to serve the new frontend first
-        return app.send_static_file('frontend/index.html')
+        from flask import send_from_directory
+        return send_from_directory('frontend', 'index.html')
     except:
         # Fallback to API info
         return jsonify({
