@@ -883,6 +883,64 @@ def get_demo_response():
         logger.error(f"Error getting demo response: {str(e)}")
         return jsonify({'error': 'Failed to get demo response'}), 500
 
+@app.route('/api/answer-question', methods=['POST'])
+def answer_question():
+    """Answer question using RAG + Gemini AI (text-based, no audio)"""
+    try:
+        data = request.get_json()
+        question = data.get('question')
+        language = data.get('language', 'english')
+        
+        if not question:
+            return jsonify({'error': 'question is required'}), 400
+        
+        logger.info(f"Processing text question: {question}")
+        
+        # Import RAG components
+        from src.rag.context_builder import ContextBuilder
+        from src.rag.response_generator import ResponseGenerator
+        
+        # Initialize components
+        context_builder = ContextBuilder(Config())
+        response_generator = ResponseGenerator(Config())
+        
+        # Step 1 & 2: Build context (includes semantic search)
+        context = context_builder.build_context(
+            question=question,
+            language=language.capitalize(),
+            detail_level='simple',
+            subject_filter='science'
+        )
+        
+        logger.info(f"Context built with {len(context.get('search_results', {}).get('results', []))} passages")
+        
+        # Step 3: Generate response using Gemini
+        response_data = response_generator.generate_response(context)
+        
+        if response_data.get('success'):
+            return jsonify({
+                'success': True,
+                'question': question,
+                'response': response_data.get('response_text', ''),
+                'detailed_response': response_data.get('detailed_response', ''),
+                'sources_used': len(context.get('search_results', {}).get('results', [])),
+                'language': language
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate response',
+                'message': response_data.get('error', 'Unknown error')
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Error answering question: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to process question',
+            'message': str(e)
+        }), 500
+
 # Performance Monitoring API Endpoints
 
 @app.route('/api/performance/metrics', methods=['GET'])

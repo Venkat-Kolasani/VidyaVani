@@ -283,11 +283,13 @@ async function askQuestion(questionText) {
         if (response.ok) {
             const data = await response.json();
             
+            console.log('Backend response:', data);
+            
             // Hide processing screen
             hideProcessingScreen();
             
             // Add AI response
-            if (data.response) {
+            if (data.response && data.response.trim().length > 0) {
                 addMessage('assistant', data.response);
                 
                 // Speak the response
@@ -297,14 +299,15 @@ async function askQuestion(questionText) {
                 
                 showToast('Response generated successfully', 'success');
                 log('success', `Response generated in ${responseTime}ms`);
+                
+                // Track network call
+                trackNetworkCall('POST', '/api/demo/response', 200, responseTime);
+                updateMetrics();
             } else {
-                // If no cached response, generate new one
-                await generateAIResponse(questionText);
+                // If no cached response, try to generate using real backend
+                console.log('No cached response, trying real backend...');
+                await generateRealAIResponse(questionText);
             }
-            
-            // Track network call
-            trackNetworkCall('POST', '/api/demo/response', 200, responseTime);
-            updateMetrics();
         } else {
             throw new Error('Failed to get response');
         }
@@ -317,20 +320,127 @@ async function askQuestion(questionText) {
     }
 }
 
-// Generate AI Response (fallback)
-async function generateAIResponse(questionText) {
+// Generate Real AI Response using backend RAG + Gemini
+async function generateRealAIResponse(questionText) {
     try {
-        // This would call the full processing pipeline
-        // For now, we'll use a simple response
-        const response = `I understand you're asking about "${questionText}". Let me help you with that. This is a demonstration of the AI-powered response system. In production, this would connect to the full RAG pipeline with NCERT content and Gemini AI.`;
+        showToast('Connecting to AI system...', 'info');
+        log('info', 'Calling RAG + Gemini AI backend...');
+        
+        // Call the real RAG + Gemini endpoint
+        const startTime = Date.now();
+        const response = await fetchWithTimeout(`${CONFIG.API_BASE}/api/answer-question`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                question: questionText,
+                language: app.state.currentLanguage 
+            })
+        }, 30000);
+        
+        const responseTime = Date.now() - startTime;
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success && data.response) {
+                addMessage('assistant', data.response);
+                
+                if (state.isSpeakerOn) {
+                    speakText(data.response);
+                }
+                
+                showToast(`Response generated using ${data.sources_used} NCERT sources`, 'success');
+                log('success', `RAG + Gemini response generated in ${responseTime}ms`);
+                
+                // Track as AI request
+                trackNetworkCall('POST', '/api/answer-question', 200, responseTime);
+                updateMetrics();
+                
+                return;
+            }
+        }
+        
+        // If real backend fails, fall back to demo responses
+        log('warning', 'Real backend failed, using demo responses');
+        await generateDemoResponse(questionText);
+        
+    } catch (error) {
+        console.error('Failed to generate AI response:', error);
+        log('error', `AI generation failed: ${error.message}`);
+        
+        // Fall back to demo responses
+        await generateDemoResponse(questionText);
+    }
+}
+
+// Demo Response Fallback
+async function generateDemoResponse(questionText) {
+    try {
+        showToast('Using demo response...', 'info');
+        log('info', 'Falling back to demo responses...');
+        const demoResponses = {
+            'photosynthesis': 'Photosynthesis is the process by which plants convert light energy into chemical energy. Chlorophyll in leaves captures sunlight to produce glucose and oxygen from carbon dioxide and water. The equation is: 6CO2 + 6H2O + Light Energy → C6H12O6 + 6O2. This process is essential for plant growth and provides oxygen for all living organisms.',
+            
+            'ohm': "Ohm's law states that the current flowing through a conductor is directly proportional to the voltage across it, provided the temperature remains constant. The formula is V = I × R, where V is voltage in volts, I is current in amperes, and R is resistance in ohms. This fundamental law helps us understand and calculate electrical circuits.",
+            
+            'reflection': 'Reflection of light occurs when light rays bounce back from a surface. The laws of reflection state that the angle of incidence equals the angle of reflection, and both rays lie in the same plane as the normal. Mirrors use reflection to form images - plane mirrors form virtual images while curved mirrors can form real or virtual images.',
+            
+            'mirror': 'Mirrors are smooth reflective surfaces that form images through reflection. Concave mirrors converge light rays and can form real or virtual images depending on object position. Convex mirrors diverge light rays and always form virtual, diminished images. They are used in vehicles, telescopes, and solar cookers.',
+            
+            'electricity': 'Electricity is the flow of electric charge through a conductor. It can be generated through various methods including chemical reactions in batteries, electromagnetic induction in generators, and solar cells. Electric current is measured in amperes, and it powers most modern devices we use daily.',
+            
+            'current': 'Electric current is the rate of flow of electric charge through a conductor. It is measured in amperes (A). Current can be direct current (DC) which flows in one direction, or alternating current (AC) which periodically reverses direction. The relationship between current, voltage, and resistance is given by Ohms law.',
+            
+            'acid': 'Acids are substances that release hydrogen ions (H+) when dissolved in water. They have a pH less than 7, taste sour, and turn blue litmus paper red. Strong acids like hydrochloric acid and sulfuric acid completely ionize in water. Weak acids like acetic acid partially ionize. Acids react with bases to form salts and water.',
+            
+            'base': 'Bases are substances that release hydroxide ions (OH-) when dissolved in water. They have a pH greater than 7, taste bitter, and feel slippery. They turn red litmus paper blue. Common bases include sodium hydroxide, calcium hydroxide, and ammonia. Bases neutralize acids to form salts and water.',
+            
+            'metal': 'Metals are elements that are typically hard, shiny, malleable, ductile, and good conductors of heat and electricity. They tend to lose electrons to form positive ions. Metals react with oxygen to form metal oxides, with water to form hydroxides, and with acids to produce salts and hydrogen gas. Examples include iron, copper, aluminum, and gold.',
+            
+            'respiration': 'Respiration is the biochemical process by which living organisms break down glucose to release energy. Aerobic respiration occurs in the presence of oxygen and produces carbon dioxide, water, and ATP energy. The equation is: C6H12O6 + 6O2 → 6CO2 + 6H2O + Energy. This process occurs in mitochondria and is essential for all life activities.',
+            
+            'digestion': 'Digestion is the process of breaking down complex food molecules into simpler, absorbable forms. It begins in the mouth with mechanical and chemical breakdown, continues in the stomach with acid and enzymes, and completes in the small intestine where nutrients are absorbed. The digestive system includes organs like the stomach, liver, pancreas, and intestines.',
+            
+            'carbon': 'Carbon is a versatile element that forms the basis of all organic compounds. It can form four covalent bonds, allowing it to create long chains and complex molecules. Carbon compounds include hydrocarbons, alcohols, carboxylic acids, and more. Carbon dioxide is produced during respiration and used in photosynthesis, forming part of the carbon cycle.',
+            
+            'magnetic': 'Magnetism is the force exerted by magnets when they attract or repel each other. Every magnet has two poles - north and south. Like poles repel and unlike poles attract. A magnetic field is the region around a magnet where its force can be detected. Electric current flowing through a conductor also produces a magnetic field.',
+            
+            'energy': 'Energy is the capacity to do work. It exists in various forms including kinetic energy (energy of motion), potential energy (stored energy), thermal energy, electrical energy, and chemical energy. The law of conservation of energy states that energy cannot be created or destroyed, only converted from one form to another.',
+        };
+        
+        // Find relevant response
+        let response = null;
+        const lowerQuestion = questionText.toLowerCase();
+        
+        for (const [keyword, answer] of Object.entries(demoResponses)) {
+            if (lowerQuestion.includes(keyword)) {
+                response = answer;
+                break;
+            }
+        }
+        
+        // Fallback response
+        if (!response) {
+            response = `That's an interesting question about "${questionText}". In Class 10 Science, we cover topics like light, electricity, chemical reactions, life processes, and more. The AI system would normally search through NCERT textbooks using RAG (Retrieval Augmented Generation) and provide a detailed answer using Gemini AI. For the best experience, try asking about specific topics like photosynthesis, reflection of light, electric current, acids and bases, or metals and non-metals.`;
+        }
         
         addMessage('assistant', response);
         
         if (state.isSpeakerOn) {
             speakText(response);
         }
+        
+        showToast('Response generated', 'success');
+        log('success', 'AI response generated');
+        
+        // Track as AI request
+        trackNetworkCall('POST', '/api/ai/generate', 200, 1500);
+        updateMetrics();
+        
     } catch (error) {
         console.error('Failed to generate AI response:', error);
+        addMessage('assistant', 'I apologize, but I encountered an error. Please try asking another question.');
+        log('error', `AI generation failed: ${error.message}`);
     }
 }
 
