@@ -316,10 +316,13 @@ async function askQuestion(questionText) {
                 // Track network call
                 trackNetworkCall('POST', '/api/demo/response', 200, responseTime);
                 updateMetrics();
+                return; // IMPORTANT: Stop here, we got a response
             } else {
                 // If no cached response, try to generate using real backend
                 console.log('No cached response, trying real backend...');
+                hideProcessingScreen();
                 await generateRealAIResponse(questionText);
+                return; // IMPORTANT: generateRealAIResponse handles everything
             }
         } else {
             throw new Error('Failed to get response');
@@ -372,13 +375,14 @@ async function generateRealAIResponse(questionText) {
                 trackNetworkCall('POST', '/api/answer-question', 200, responseTime);
                 updateMetrics();
                 
-                return;
+                return; // Success - stop here
             }
         }
         
         // If RAG fails, try Gemini direct
         log('warning', 'RAG failed, trying Gemini direct...');
         await tryGeminiDirect(questionText);
+        return; // tryGeminiDirect handles everything
         
     } catch (error) {
         console.error('Failed to generate AI response:', error);
@@ -423,13 +427,14 @@ async function tryGeminiDirect(questionText) {
                 trackNetworkCall('POST', '/api/gemini-direct', 200, responseTime);
                 updateMetrics();
                 
-                return;
+                return; // Success - stop here
             }
         }
         
         // If Gemini also fails, use demo responses
         log('warning', 'Gemini direct failed, using demo responses');
         await generateDemoResponse(questionText);
+        return; // generateDemoResponse handles everything
         
     } catch (error) {
         console.error('Gemini direct failed:', error);
