@@ -1033,8 +1033,7 @@ body {
     background: var(--border-color);
 }
 
-/* IVR 
-Menu Screen */
+/* IVR Menu Screen */
 .ivr-menu-screen {
     padding: 20px;
     animation: fadeIn 0.5s ease;
