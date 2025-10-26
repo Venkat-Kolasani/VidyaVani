@@ -1119,33 +1119,24 @@
                     });
                 }
 
-                // Process question with full AI pipeline
-                const processingResponse = await fetch(`${API_BASE}/api/process-question`, {
+                // Use demo response endpoint (optimized for text questions)
+                const demoResponse = await fetch(`${API_BASE}/api/demo/response`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         question: question,
-                        phone_number: phoneNumber,
                         language: currentLanguage,
                         session_id: sessionId
                     })
                 });
 
                 let responseData;
-                if (processingResponse.ok) {
-                    responseData = await processingResponse.json();
-                    console.log('✅ AI processing response:', responseData);
+                if (demoResponse.ok) {
+                    responseData = await demoResponse.json();
+                    console.log('✅ AI response received:', responseData);
                     showNetworkActivity('AI response generated successfully');
                 } else {
-                    // Fallback to demo response endpoint
-                    console.log('⚠️ Full processing failed, using demo endpoint');
-                    const demoResponse = await fetch(`${API_BASE}/api/demo/response`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ question: question })
-                    });
-                    responseData = await demoResponse.json();
-                    showNetworkActivity('Using cached demo response');
+                    throw new Error('Failed to get AI response: ' + demoResponse.status);
                 }
 
                 // Add response to session
@@ -1234,16 +1225,49 @@
             `);
         }
 
+        async function speakResponse(text) {
+            return new Promise((resolve) => {
+                if (!text) {
+                    resolve();
+                    return;
+                }
+
+                console.log('🔊 Speaking response...');
+                showNetworkActivity('Playing TTS audio response');
+
+                // Cancel any ongoing speech
+                speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1.0;
+                utterance.lang = currentLanguage === 'telugu' ? 'te-IN' : 'en-IN';
+                utterance.volume = 1.0;
+
+                utterance.onstart = () => {
+                    console.log('🔊 TTS started');
+                    updateCallStatus('status-connected', 'Playing Response');
+                };
+
+                utterance.onend = () => {
+                    console.log('🔊 TTS completed');
+                    showNetworkActivity('TTS playback completed');
+                    resolve();
+                };
+
+                utterance.onerror = (event) => {
+                    console.error('TTS error:', event.error);
+                    showNetworkActivity('TTS error: ' + event.error);
+                    resolve();
+                };
+
+                speechSynthesis.speak(utterance);
+            });
+        }
+
         function playResponse() {
             if (!currentResponse) return;
-
-            // Use speech synthesis for demo
-            const utterance = new SpeechSynthesisUtterance(currentResponse);
-            utterance.rate = 0.9;
-            utterance.pitch = 1.0;
-            utterance.lang = currentLanguage === 'telugu' ? 'te-IN' : 'en-IN';
-
-            speechSynthesis.speak(utterance);
+            speakResponse(currentResponse);
         }
 
         function updateCallStatus(statusClass, statusText) {
@@ -1271,54 +1295,99 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        // Voice Recording Functionality
-        let mediaRecorder;
-        let audioChunks = [];
+        // Voice Recording with Browser Speech Recognition
+        let recognition;
         let isRecording = false;
+
+        function initializeSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                console.warn('Speech Recognition not supported');
+                return null;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = currentLanguage === 'telugu' ? 'te-IN' : 'en-IN';
+
+            recognition.onstart = () => {
+                console.log('🎤 Listening...');
+                showNetworkActivity('Listening for voice input...');
+            };
+
+            recognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript;
+                console.log('🎤 Recognized:', transcript);
+                showNetworkActivity('Recognized: "' + transcript + '"');
+                await processVoiceQuestion(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech error:', event.error);
+                showNetworkActivity('Speech error: ' + event.error);
+                isRecording = false;
+                updateRecordButton(false);
+                
+                if (event.error === 'not-allowed') {
+                    alert('Microphone access denied. Please allow microphone access.');
+                }
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                updateRecordButton(false);
+            };
+
+            return recognition;
+        }
 
         async function toggleRecording() {
             if (!isRecording) {
+                if (!recognition) {
+                    recognition = initializeSpeechRecognition();
+                    if (!recognition) {
+                        alert('Speech recognition not supported. Please use Chrome, Edge, or Safari.');
+                        return;
+                    }
+                }
+
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-
-                    mediaRecorder.ondataavailable = event => {
-                        audioChunks.push(event.data);
-                    };
-
-                    mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                        await processVoiceQuestion(audioBlob);
-
-                        // Stop all tracks to release microphone
-                        stream.getTracks().forEach(track => track.stop());
-                    };
-
-                    mediaRecorder.start();
+                    recognition.lang = currentLanguage === 'telugu' ? 'te-IN' : 'en-IN';
+                    recognition.start();
                     isRecording = true;
-
-                    document.getElementById('record-btn').textContent = '🛑 Stop Recording';
-                    document.getElementById('record-btn').style.background = 'rgba(76, 175, 80, 0.2)';
-                    document.getElementById('record-btn').style.borderColor = '#4CAF50';
-                    document.getElementById('recording-status').style.display = 'block';
-
+                    updateRecordButton(true);
                 } catch (error) {
-                    console.error('Error accessing microphone:', error);
-                    alert('Could not access microphone. Please check permissions.');
+                    console.error('Error starting recording:', error);
+                    alert('Could not start recording. Please try again.');
                 }
             } else {
-                mediaRecorder.stop();
+                if (recognition) recognition.stop();
                 isRecording = false;
-
-                document.getElementById('record-btn').textContent = '🎤 Click to Record Your Question';
-                document.getElementById('record-btn').style.background = 'rgba(244, 67, 54, 0.2)';
-                document.getElementById('record-btn').style.borderColor = '#f44336';
-                document.getElementById('recording-status').style.display = 'none';
+                updateRecordButton(false);
             }
         }
 
-        async function processVoiceQuestion(audioBlob) {
+        function updateRecordButton(recording) {
+            const btn = document.getElementById('record-btn');
+            const status = document.getElementById('recording-status');
+            
+            if (recording) {
+                btn.textContent = '🛑 Stop Recording';
+                btn.style.background = 'rgba(76, 175, 80, 0.2)';
+                btn.style.borderColor = '#4CAF50';
+                status.style.display = 'block';
+                status.textContent = '🔴 Listening... Speak your question now';
+            } else {
+                btn.textContent = '🎤 Click to Record Your Question';
+                btn.style.background = 'rgba(244, 67, 54, 0.2)';
+                btn.style.borderColor = '#f44336';
+                status.style.display = 'none';
+            }
+        }
+
+        async function processVoiceQuestion(questionText) {
             if (!callActive || isProcessing) return;
 
             isProcessing = true;
@@ -1330,8 +1399,8 @@
 
             updateScreenContent(`
                 <div class="menu-text">
-                    <strong>Voice Question Received</strong><br><br>
-                    🎤 Converting speech to text...<br>
+                    <strong>Voice Question Received:</strong><br>
+                    "${questionText}"<br><br>
                     🤖 AI is processing your question...
                 </div>
             `);
@@ -1339,64 +1408,59 @@
             document.getElementById('processing-indicator').style.display = 'block';
 
             try {
-                // Simulate voice processing (in real system, this would use Google Cloud STT)
-                await sleep(2000);
+                console.log('🎤 Processing voice question:', questionText);
+                showNetworkActivity('Processing: "' + questionText.substring(0, 40) + '..."');
 
-                // For demo, use a sample question
-                const sampleQuestions = [
-                    "What is reflection of light?",
-                    "How does a concave mirror work?",
-                    "What is the difference between AC and DC current?",
-                    "Explain Ohm's law"
-                ];
+                // Add question to session
+                if (sessionId) {
+                    await fetch(`${API_BASE}/api/session/${encodeURIComponent(phoneNumber)}/question`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            question: questionText,
+                            type: 'voice_recording',
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+                }
 
-                const randomQuestion = sampleQuestions[Math.floor(Math.random() * sampleQuestions.length)];
-
-                updateScreenContent(`
-                    <div class="menu-text">
-                        <strong>Speech Recognition Result:</strong><br>
-                        "${randomQuestion}"<br><br>
-                        🤖 AI is processing your question...
-                    </div>
-                `);
-
-                await sleep(1000);
-
-                // Get AI response from real backend
-                console.log('🎤 Processing voice question, audio blob size:', audioBlob.size);
-                showNetworkActivity('Voice recording captured (' + Math.round(audioBlob.size/1024) + 'KB)');
-                showNetworkActivity('STT Result: "' + randomQuestion + '"');
-
+                // Get AI response from backend
                 const response = await fetch(`${API_BASE}/api/demo/response`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        question: randomQuestion,
-                        source: 'voice_recording',
+                        question: questionText,
+                        language: currentLanguage,
                         session_id: sessionId
                     })
                 });
 
                 const responseData = await response.json();
-                console.log('✅ Voice question processed:', responseData);
+                console.log('✅ AI response received:', responseData);
 
                 if (responseData.response) {
                     currentResponse = responseData.response;
-                    showResponse(randomQuestion, responseData.response);
-                    showNetworkActivity('Voice question processed successfully');
+                    showNetworkActivity('AI response generated successfully');
                     
-                    // Update session with voice interaction
+                    // Add response to session
                     if (sessionId) {
-                        await fetch(`${API_BASE}/api/session/${encodeURIComponent(phoneNumber)}/question`, {
+                        await fetch(`${API_BASE}/api/session/${encodeURIComponent(phoneNumber)}/response`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
-                                question: randomQuestion,
-                                type: 'voice_recording',
+                                response: responseData.response,
                                 timestamp: new Date().toISOString()
                             })
                         });
                     }
+                    
+                    showResponse(questionText, responseData.response);
+                    
+                    // Automatically speak the response
+                    await speakResponse(responseData.response);
+                    
+                    // Get performance metrics
+                    fetchPerformanceMetrics();
                 } else {
                     showError("Sorry, I don't have information about that topic. Please try another question.");
                 }
