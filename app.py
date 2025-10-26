@@ -6,6 +6,7 @@ Main Flask application entry point
 import os
 import logging
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 from datetime import datetime, timezone
 import numpy as np
 
@@ -36,6 +37,9 @@ from src.utils.load_balancer import setup_load_balancing
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Enable CORS for all routes
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Setup Google Cloud credentials
 Config.setup_google_credentials()
@@ -176,42 +180,68 @@ def manual_restart():
 
 @app.route('/', methods=['GET'])
 def index():
-    """Root endpoint"""
-    return jsonify({
-        'message': 'VidyaVani AI-Powered IVR Learning System',
-        'status': 'running',
-        'endpoints': {
-            'health': '/health',
-            'webhook_incoming': '/webhook/incoming-call',
-            'webhook_language': '/webhook/language-selection',
-            'webhook_grade': '/webhook/grade-confirmation',
-            'webhook_interaction': '/webhook/interaction-mode-selection',
-            'webhook_recording': '/webhook/question-recording',
-            'webhook_response': '/webhook/response-delivery',
-            'webhook_followup': '/webhook/follow-up-menu',
-            'webhook_error_recovery': '/webhook/error-recovery',
-            'webhook_callend': '/webhook/call-end',
-            'api_process_question': '/api/process-question',
-            'api_processing_status': '/api/processing-status/<phone_number>',
-            'demo_xml': '/demo/xml-responses',
-            'api_docs': '/api/docs',
-            'session_stats': '/api/session/stats',
-            'demo_questions': '/api/demo/questions',
-            'performance_metrics': '/api/performance/metrics',
-            'performance_dashboard': '/api/performance/dashboard',
-            'performance_components': '/api/performance/components',
-            'performance_api_usage': '/api/performance/api-usage',
-            'performance_cache': '/api/performance/cache',
-            'performance_alerts': '/api/performance/alerts',
-            'error_summary': '/api/errors/summary',
-            'debugging_report': '/api/errors/debugging-report',
-            'dashboard_page': '/dashboard',
-            'demo_simulator': '/demo/simulator',
-            'processing_dashboard': '/demo/processing-dashboard',
-            'call_recordings': '/api/demo/recordings',
-            'demo_summary': '/api/demo/summary'
-        }
-    })
+    """Root endpoint - Serve the main frontend"""
+    try:
+        # Try to serve the new frontend first
+        return app.send_static_file('frontend/index.html')
+    except:
+        # Fallback to API info
+        return jsonify({
+            'message': 'VidyaVani AI-Powered IVR Learning System',
+            'status': 'running',
+            'frontend': '/app',
+            'endpoints': {
+                'health': '/health',
+                'webhook_incoming': '/webhook/incoming-call',
+                'webhook_language': '/webhook/language-selection',
+                'webhook_grade': '/webhook/grade-confirmation',
+                'webhook_interaction': '/webhook/interaction-mode-selection',
+                'webhook_recording': '/webhook/question-recording',
+                'webhook_response': '/webhook/response-delivery',
+                'webhook_followup': '/webhook/follow-up-menu',
+                'webhook_error_recovery': '/webhook/error-recovery',
+                'webhook_callend': '/webhook/call-end',
+                'api_process_question': '/api/process-question',
+                'api_processing_status': '/api/processing-status/<phone_number>',
+                'demo_xml': '/demo/xml-responses',
+                'api_docs': '/api/docs',
+                'session_stats': '/api/session/stats',
+                'demo_questions': '/api/demo/questions',
+                'performance_metrics': '/api/performance/metrics',
+                'performance_dashboard': '/api/performance/dashboard',
+                'performance_components': '/api/performance/components',
+                'performance_api_usage': '/api/performance/api-usage',
+                'performance_cache': '/api/performance/cache',
+                'performance_alerts': '/api/performance/alerts',
+                'error_summary': '/api/errors/summary',
+                'debugging_report': '/api/errors/debugging-report',
+                'dashboard_page': '/dashboard',
+                'demo_simulator': '/demo/simulator',
+                'processing_dashboard': '/demo/processing-dashboard',
+                'call_recordings': '/api/demo/recordings',
+                'demo_summary': '/api/demo/summary'
+            }
+        })
+
+@app.route('/app', methods=['GET'])
+def frontend_app():
+    """Serve the main frontend application"""
+    try:
+        with open('frontend/index.html', 'r') as f:
+            return f.read(), 200, {'Content-Type': 'text/html'}
+    except Exception as e:
+        logger.error(f"Error serving frontend: {str(e)}")
+        return f"<h1>Frontend Error</h1><p>Could not load frontend: {str(e)}</p>", 500
+
+@app.route('/frontend/<path:filename>', methods=['GET'])
+def serve_frontend_files(filename):
+    """Serve frontend static files"""
+    try:
+        from flask import send_from_directory
+        return send_from_directory('frontend', filename)
+    except Exception as e:
+        logger.error(f"Error serving frontend file {filename}: {str(e)}")
+        return f"File not found: {filename}", 404
 
 # Session Management API Endpoints
 

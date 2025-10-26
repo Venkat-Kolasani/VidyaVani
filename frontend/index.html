@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidyaVani - AI-Powered Voice Learning Assistant</title>
+    <link rel="stylesheet" href="/frontend/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="app-container">
+        <!-- Left Panel - Phone Simulator -->
+        <div class="phone-panel">
+            <div class="phone-device">
+                <!-- Phone Header -->
+                <div class="phone-header">
+                    <div class="status-bar">
+                        <span class="time" id="current-time">12:30</span>
+                        <div class="status-icons">
+                            <span class="signal">📶</span>
+                            <span class="battery">🔋</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phone Screen -->
+                <div class="phone-screen">
+                    <!-- Call Status -->
+                    <div class="call-header">
+                        <div class="call-status" id="call-status">
+                            <div class="status-dot" id="status-dot"></div>
+                            <span id="status-text">Ready to Start</span>
+                        </div>
+                        <div class="call-timer" id="call-timer">00:00</div>
+                    </div>
+
+                    <!-- Main Content Area -->
+                    <div class="content-area" id="content-area">
+                        <!-- Welcome Screen -->
+                        <div class="welcome-screen" id="welcome-screen">
+                            <div class="logo">🎓</div>
+                            <h1>VidyaVani</h1>
+                            <p class="tagline">AI-Powered Voice Learning Assistant</p>
+                            <p class="description">Class 10 Science • English & Telugu</p>
+                            <button class="start-btn" id="start-btn" onclick="startSession()">
+                                <span class="btn-icon">📞</span>
+                                Start Learning Session
+                            </button>
+                        </div>
+
+                        <!-- IVR Menu Screen -->
+                        <div class="ivr-menu-screen hidden" id="ivr-menu-screen">
+                            <div class="ivr-prompt" id="ivr-prompt">
+                                <p class="ivr-text">Welcome to VidyaVani! Your AI-powered learning assistant.</p>
+                                <p class="ivr-instruction">Please select an option:</p>
+                            </div>
+                            
+                            <div class="ivr-options" id="ivr-options">
+                                <div class="ivr-option" onclick="handleKeypadPress('1')">
+                                    <span class="option-key">1</span>
+                                    <span class="option-text">English</span>
+                                </div>
+                                <div class="ivr-option" onclick="handleKeypadPress('2')">
+                                    <span class="option-key">2</span>
+                                    <span class="option-text">Telugu</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Phone Keypad -->
+                            <div class="phone-keypad" id="phone-keypad">
+                                <button class="keypad-btn" onclick="handleKeypadPress('1')">1</button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('2')">2<span class="letters">ABC</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('3')">3<span class="letters">DEF</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('4')">4<span class="letters">GHI</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('5')">5<span class="letters">JKL</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('6')">6<span class="letters">MNO</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('7')">7<span class="letters">PQRS</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('8')">8<span class="letters">TUV</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('9')">9<span class="letters">WXYZ</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('*')">*</button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('0')">0<span class="letters">+</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('#')">#</button>
+                            </div>
+                        </div>
+
+                        <!-- Conversation Screen -->
+                        <div class="conversation-screen hidden" id="conversation-screen">
+                            <div class="messages" id="messages"></div>
+                            
+                            <!-- Voice Input Area -->
+                            <div class="voice-input-area">
+                                <div class="voice-visualizer" id="voice-visualizer">
+                                    <div class="wave"></div>
+                                    <div class="wave"></div>
+                                    <div class="wave"></div>
+                                    <div class="wave"></div>
+                                    <div class="wave"></div>
+                                </div>
+                                
+                                <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()">
+                                    <span class="mic-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                                        </svg>
+                                    </span>
+                                    <span class="btn-text">Tap to Speak</span>
+                                </button>
+                                
+                                <div class="listening-indicator hidden" id="listening-indicator">
+                                    <div class="pulse"></div>
+                                    <span>Listening...</span>
+                                </div>
+                            </div>
+
+                            <!-- Quick Questions -->
+                            <div class="quick-questions" id="quick-questions">
+                                <p class="quick-title">Quick Questions:</p>
+                                <div class="question-chips" id="question-chips"></div>
+                            </div>
+                        </div>
+
+                        <!-- Processing Screen -->
+                        <div class="processing-screen hidden" id="processing-screen">
+                            <div class="processing-animation">
+                                <div class="brain-icon">🧠</div>
+                                <div class="processing-dots">
+                                    <span></span><span></span><span></span>
+                                </div>
+                            </div>
+                            <p class="processing-text">AI is analyzing your question...</p>
+                            <div class="processing-steps" id="processing-steps">
+                                <div class="step"><span class="step-icon">🎤</span> Speech Recognition</div>
+                                <div class="step"><span class="step-icon">🔍</span> Semantic Search</div>
+                                <div class="step"><span class="step-icon">🤖</span> AI Response Generation</div>
+                                <div class="step"><span class="step-icon">🔊</span> Text-to-Speech</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phone Controls -->
+                <div class="phone-controls">
+                    <button class="control-btn mute-btn" id="mute-btn" onclick="toggleMute()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                    </button>
+                    <button class="control-btn end-btn hidden" id="end-btn" onclick="endSession()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                            <line x1="23" y1="1" x2="1" y2="23"></line>
+                        </svg>
+                    </button>
+                    <button class="control-btn speaker-btn" id="speaker-btn" onclick="toggleSpeaker()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- System Info -->
+            <div class="system-info">
+                <div class="info-item">
+                    <span class="info-label">Backend:</span>
+                    <span class="info-value" id="backend-status">Checking...</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Session:</span>
+                    <span class="info-value" id="session-id">Not Started</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Developer Console -->
+        <div class="developer-panel">
+            <div class="panel-header">
+                <h2>🔧 Developer Console</h2>
+                <button class="toggle-btn" onclick="toggleDeveloperPanel()">−</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('pipeline')">Pipeline</button>
+                <button class="tab" onclick="switchTab('network')">Network</button>
+                <button class="tab" onclick="switchTab('metrics')">Metrics</button>
+                <button class="tab" onclick="switchTab('logs')">Logs</button>
+            </div>
+            
+            <!-- Pipeline Tab -->
+            <div class="tab-content active" id="pipeline-tab">
+                <div class="pipeline-header">
+                    <h3>AI Processing Pipeline</h3>
+                </div>
+                <div class="pipeline-flow">
+                    <div class="pipeline-step" id="step-ivr">
+                        <div class="step-icon">📞</div>
+                        <div class="step-content">
+                            <div class="step-title">IVR System</div>
+                            <div class="step-status">Idle</div>
+                            <div class="step-time"></div>
+                        </div>
+                        <div class="step-indicator"></div>
+                    </div>
+                    
+                    <div class="pipeline-arrow">↓</div>
+                    
+                    <div class="pipeline-step" id="step-stt">
+                        <div class="step-icon">🎤</div>
+                        <div class="step-content">
+                            <div class="step-title">Speech-to-Text</div>
+                            <div class="step-status">Waiting</div>
+                            <div class="step-time"></div>
+                        </div>
+                        <div class="step-indicator"></div>
+                    </div>
+                    
+                    <div class="pipeline-arrow">↓</div>
+                    
+                    <div class="pipeline-step" id="step-rag">
+                        <div class="step-icon">🔍</div>
+                        <div class="step-content">
+                            <div class="step-title">RAG System</div>
+                            <div class="step-status">Waiting</div>
+                            <div class="step-time"></div>
+                        </div>
+                        <div class="step-indicator"></div>
+                    </div>
+                    
+                    <div class="pipeline-arrow">↓</div>
+                    
+                    <div class="pipeline-step" id="step-gemini">
+                        <div class="step-icon">🤖</div>
+                        <div class="step-content">
+                            <div class="step-title">Gemini AI</div>
+                            <div class="step-status">Waiting</div>
+                            <div class="step-time"></div>
+                        </div>
+                        <div class="step-indicator"></div>
+                    </div>
+                    
+                    <div class="pipeline-arrow">↓</div>
+                    
+                    <div class="pipeline-step" id="step-tts">
+                        <div class="step-icon">🔊</div>
+                        <div class="step-content">
+                            <div class="step-title">Text-to-Speech</div>
+                            <div class="step-status">Waiting</div>
+                            <div class="step-time"></div>
+                        </div>
+                        <div class="step-indicator"></div>
+                    </div>
+                    
+                    <div class="pipeline-arrow">↓</div>
+                    
+                    <div class="pipeline-step" id="step-response">
+                        <div class="step-icon">✅</div>
+                        <div class="step-content">
+                            <div class="step-title">Response Delivered</div>
+                            <div class="step-status">Waiting</div>
+                            <div class="step-time"></div>
+                        </div>
+                        <div class="step-indicator"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Tab -->
+            <div class="tab-content" id="network-tab">
+                <div class="network-header">
+                    <h3>API Calls</h3>
+                    <button class="clear-btn" onclick="clearNetwork()">Clear</button>
+                </div>
+                <div class="network-list" id="network-list">
+                    <div class="empty-state">No network activity yet</div>
+                </div>
+            </div>
+
+            <!-- Metrics Tab -->
+            <div class="tab-content" id="metrics-tab">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Requests</div>
+                        <div class="metric-value" id="total-requests">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Avg Response Time</div>
+                        <div class="metric-value" id="avg-response-time">0ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Success Rate</div>
+                        <div class="metric-value" id="success-rate">100%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">AI Requests</div>
+                        <div class="metric-value" id="ai-requests">0</div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h4>Response Time Trend</h4>
+                    <canvas id="response-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div class="tab-content" id="logs-tab">
+                <div class="logs-header">
+                    <h3>System Logs</h3>
+                    <button class="clear-btn" onclick="clearLogs()">Clear</button>
+                </div>
+                <div class="logs-list" id="logs-list">
+                    <div class="log-entry info">
+                        <span class="log-time">00:00:00</span>
+                        <span class="log-message">System initialized</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/frontend/js/pipeline.js"></script>
+    <script src="/frontend/js/ivr.js"></script>
+    <script src="/frontend/js/app.js"></script>
+    <script src="/frontend/js/voice.js"></script>
+    <script src="/frontend/js/network.js"></script>
+</body>
+</html>
+""
