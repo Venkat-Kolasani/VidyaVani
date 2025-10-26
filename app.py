@@ -913,7 +913,8 @@ def answer_question():
             subject_filter='science'
         )
         
-        logger.info(f"Context built with {len(context.get('search_results', {}).get('results', []))} passages")
+        sources_count = len(context.get('search_results', {}).get('results', []))
+        logger.info(f"Context built with {sources_count} passages")
         
         # Step 3: Generate response using Gemini
         response_data = response_generator.generate_response(context)
@@ -924,8 +925,9 @@ def answer_question():
                 'question': question,
                 'response': response_data.get('response_text', ''),
                 'detailed_response': response_data.get('detailed_response', ''),
-                'sources_used': len(context.get('search_results', {}).get('results', [])),
-                'language': language
+                'sources_used': sources_count,
+                'language': language,
+                'method': 'rag' if sources_count > 0 else 'gemini_direct'
             })
         else:
             return jsonify({
@@ -936,6 +938,63 @@ def answer_question():
     
     except Exception as e:
         logger.error(f"Error answering question: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to process question',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/gemini-direct', methods=['POST'])
+def gemini_direct():
+    """Answer question using Gemini AI directly (fallback when RAG fails)"""
+    try:
+        data = request.get_json()
+        question = data.get('question')
+        language = data.get('language', 'english')
+        
+        if not question:
+            return jsonify({'error': 'question is required'}), 400
+        
+        logger.info(f"Using Gemini direct for: {question}")
+        
+        # Import Gemini adapter
+        from src.llm.gemini_adapter import GeminiAdapter
+        
+        # Initialize Gemini
+        gemini = GeminiAdapter(Config())
+        
+        # Create a simple prompt for Class 10 Science
+        prompt = f"""You are Vidya, an AI tutor for Class 10 Science students in India. 
+        
+Student's question: {question}
+
+Please provide a clear, educational answer suitable for Class 10 students. Include:
+1. A simple explanation of the concept
+2. Key points to remember
+3. A practical example if relevant
+
+Keep the language simple and engaging. Answer in {language}."""
+        
+        # Generate response
+        response_text = gemini.generate_text(prompt, max_tokens=500)
+        
+        if response_text:
+            return jsonify({
+                'success': True,
+                'question': question,
+                'response': response_text,
+                'sources_used': 0,
+                'language': language,
+                'method': 'gemini_direct'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate response'
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Error in Gemini direct: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Failed to process question',

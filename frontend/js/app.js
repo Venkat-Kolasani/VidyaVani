@@ -363,8 +363,10 @@ async function generateRealAIResponse(questionText) {
                     speakText(data.response);
                 }
                 
-                showToast(`Response generated using ${data.sources_used} NCERT sources`, 'success');
-                log('success', `RAG + Gemini response generated in ${responseTime}ms`);
+                const method = data.method === 'rag' ? 'RAG + Gemini' : 'Gemini AI';
+                const sourcesMsg = data.sources_used > 0 ? ` using ${data.sources_used} NCERT sources` : '';
+                showToast(`Response from ${method}${sourcesMsg}`, 'success');
+                log('success', `${method} response generated in ${responseTime}ms`);
                 
                 // Track as AI request
                 trackNetworkCall('POST', '/api/answer-question', 200, responseTime);
@@ -374,15 +376,64 @@ async function generateRealAIResponse(questionText) {
             }
         }
         
-        // If real backend fails, fall back to demo responses
-        log('warning', 'Real backend failed, using demo responses');
-        await generateDemoResponse(questionText);
+        // If RAG fails, try Gemini direct
+        log('warning', 'RAG failed, trying Gemini direct...');
+        await tryGeminiDirect(questionText);
         
     } catch (error) {
         console.error('Failed to generate AI response:', error);
         log('error', `AI generation failed: ${error.message}`);
         
         // Fall back to demo responses
+        await generateDemoResponse(questionText);
+    }
+}
+
+// Try Gemini Direct (fallback when RAG fails)
+async function tryGeminiDirect(questionText) {
+    try {
+        showToast('Trying Gemini AI...', 'info');
+        log('info', 'Calling Gemini direct endpoint...');
+        
+        const startTime = Date.now();
+        const response = await fetchWithTimeout(`${CONFIG.API_BASE}/api/gemini-direct`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                question: questionText,
+                language: app.state.currentLanguage 
+            })
+        }, 30000);
+        
+        const responseTime = Date.now() - startTime;
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success && data.response) {
+                addMessage('assistant', data.response);
+                
+                if (state.isSpeakerOn) {
+                    speakText(data.response);
+                }
+                
+                showToast('Response from Gemini AI', 'success');
+                log('success', `Gemini direct response in ${responseTime}ms`);
+                
+                trackNetworkCall('POST', '/api/gemini-direct', 200, responseTime);
+                updateMetrics();
+                
+                return;
+            }
+        }
+        
+        // If Gemini also fails, use demo responses
+        log('warning', 'Gemini direct failed, using demo responses');
+        await generateDemoResponse(questionText);
+        
+    } catch (error) {
+        console.error('Gemini direct failed:', error);
+        log('error', `Gemini direct failed: ${error.message}`);
         await generateDemoResponse(questionText);
     }
 }
