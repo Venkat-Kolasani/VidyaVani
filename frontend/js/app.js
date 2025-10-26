@@ -75,7 +75,7 @@ async function checkBackendHealth() {
 }
 
 // Fetch with timeout
-function fetchWithTimeout(url, options = {}, timeout = 10000) {
+function fetchWithTimeout(url, options = {}, timeout = 30000) {
     return Promise.race([
         fetch(url, options),
         new Promise((_, reject) =>
@@ -101,7 +101,7 @@ async function startSession() {
                 phone_number: state.phoneNumber,
                 source: 'web_frontend'
             })
-        }, 10000);
+        }, 30000);
         
         if (response.ok) {
             const data = await response.json();
@@ -133,8 +133,21 @@ async function startSession() {
         }
     } catch (error) {
         console.error('Failed to start session:', error);
-        showToast('Failed to start session. Please try again.', 'error');
+        
+        // More specific error messages
+        let errorMsg = 'Failed to start session';
+        if (error.message === 'Request timeout') {
+            errorMsg = 'Backend is taking too long to respond. Please try again.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMsg = 'Cannot connect to backend. Please check your connection.';
+        }
+        
+        showToast(errorMsg, 'error');
         log('error', `Session start failed: ${error.message}`);
+        
+        // Reset UI
+        document.getElementById('start-call-btn').style.display = 'block';
+        document.getElementById('end-call-btn').style.display = 'none';
     }
 }
 
