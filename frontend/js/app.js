@@ -119,9 +119,9 @@ async function startSession() {
             startTimer();
             
             // Initialize IVR flow
-            ivr.showIVRMenu('welcome');
-            pipeline.reset();
-            pipeline.updateStep('ivr', 'active', 'IVR System Ready');
+            window.ivr.showIVRMenu('welcome');
+            window.pipeline.reset();
+            window.pipeline.updateStep('ivr', 'active', 'IVR System Ready');
             
             showToast('Session started successfully!', 'success');
             log('success', `Session created: ${state.sessionId}`);
@@ -184,7 +184,7 @@ async function endSession() {
         document.getElementById('session-id').textContent = 'Not Started';
         
         // Reset pipeline
-        pipeline.reset();
+        window.pipeline.reset();
         
         // Stop any ongoing speech
         if (window.voice && window.voice.stopSpeaking) {
@@ -288,7 +288,7 @@ async function askQuestion(questionText) {
         showProcessingScreen();
         
         // Simulate pipeline flow
-        pipeline.simulate(questionText);
+        window.pipeline.simulate(questionText);
         
         // Send to backend for processing
         const startTime = Date.now();
