@@ -957,26 +957,32 @@ def gemini_direct():
         
         logger.info(f"Using Gemini direct for: {question}")
         
-        # Import Gemini adapter
-        from src.llm.gemini_adapter import GeminiAdapter
+        # Use Google Generative AI directly
+        import google.generativeai as genai
         
-        # Initialize Gemini
-        gemini = GeminiAdapter(Config())
+        # Configure Gemini
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            raise Exception("GEMINI_API_KEY not found")
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
         
         # Create a simple prompt for Class 10 Science
-        prompt = f"""You are Vidya, an AI tutor for Class 10 Science students in India. 
-        
+        prompt = f"""You are Vidya, an AI tutor for Class 10 Science students in India following the NCERT curriculum.
+
 Student's question: {question}
 
 Please provide a clear, educational answer suitable for Class 10 students. Include:
 1. A simple explanation of the concept
-2. Key points to remember
+2. Key points to remember  
 3. A practical example if relevant
 
-Keep the language simple and engaging. Answer in {language}."""
+Keep the language simple and engaging. Limit your response to 3-4 sentences for clarity."""
         
         # Generate response
-        response_text = gemini.generate_text(prompt, max_tokens=500)
+        response = model.generate_content(prompt)
+        response_text = response.text if response and response.text else None
         
         if response_text:
             return jsonify({
