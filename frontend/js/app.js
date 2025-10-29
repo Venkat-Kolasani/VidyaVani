@@ -325,15 +325,24 @@ async function askQuestion(questionText) {
                 return; // IMPORTANT: generateRealAIResponse handles everything
             }
         } else {
-            throw new Error('Failed to get response');
+            // API call failed, try next fallback
+            hideProcessingScreen();
+            log('warning', 'Demo API failed, trying real backend...');
+            await generateRealAIResponse(questionText);
+            return;
         }
     } catch (error) {
         console.error('Failed to process question:', error);
         hideProcessingScreen();
         
-        // Try to provide a demo response instead of showing error
-        log('warning', `Question processing failed: ${error.message}, trying demo response`);
-        await generateDemoResponse(questionText);
+        // Try real AI backend instead of demo response
+        log('warning', `Question processing failed: ${error.message}, trying real backend...`);
+        try {
+            await generateRealAIResponse(questionText);
+        } catch (fallbackError) {
+            log('error', `All methods failed, using demo response`);
+            await generateDemoResponse(questionText);
+        }
     }
 }
 
