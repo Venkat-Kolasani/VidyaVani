@@ -920,11 +920,15 @@ def answer_question():
         response_data = response_generator.generate_response(context)
         
         if response_data.get('success'):
+            # Clean markdown formatting for voice/plain text display
+            response_text = clean_markdown_formatting(response_data.get('response_text', ''))
+            detailed_response = clean_markdown_formatting(response_data.get('detailed_response', ''))
+            
             return jsonify({
                 'success': True,
                 'question': question,
-                'response': response_data.get('response_text', ''),
-                'detailed_response': response_data.get('detailed_response', ''),
+                'response': response_text,
+                'detailed_response': detailed_response,
                 'sources_used': sources_count,
                 'language': language,
                 'method': 'rag' if sources_count > 0 else 'gemini_direct'
@@ -943,6 +947,32 @@ def answer_question():
             'error': 'Failed to process question',
             'message': str(e)
         }), 500
+
+def clean_markdown_formatting(text):
+    """Remove markdown formatting from text for voice/plain text display"""
+    import re
+    
+    # Remove bold (**text** or __text__)
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+    
+    # Remove italic (*text* or _text_)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'_(.+?)_', r'\1', text)
+    
+    # Remove code blocks (```code```)
+    text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+    
+    # Remove inline code (`code`)
+    text = re.sub(r'`(.+?)`', r'\1', text)
+    
+    # Remove headers (# Header)
+    text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
+    
+    # Remove links [text](url) -> text
+    text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)
+    
+    return text.strip()
 
 @app.route('/api/gemini-direct', methods=['POST'])
 def gemini_direct():
@@ -979,6 +1009,8 @@ Please provide a clear, educational answer suitable for Class 10 students. Inclu
 2. Key points to remember  
 3. A practical example if relevant
 
+IMPORTANT: Use plain text only. Do NOT use markdown formatting like **bold**, *italic*, or other special characters. Write naturally as if speaking to a student.
+
 Keep the language simple and engaging. Limit your response to 3-4 sentences for clarity."""
         
         # Generate response
@@ -989,10 +1021,12 @@ Keep the language simple and engaging. Limit your response to 3-4 sentences for 
         
         if response_text:
             logger.info(f"Gemini response length: {len(response_text)}")
+            # Clean markdown formatting for voice/plain text display
+            cleaned_response = clean_markdown_formatting(response_text)
             return jsonify({
                 'success': True,
                 'question': question,
-                'response': response_text,
+                'response': cleaned_response,
                 'sources_used': 0,
                 'language': language,
                 'method': 'gemini_direct'
