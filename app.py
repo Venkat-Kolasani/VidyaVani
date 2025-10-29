@@ -966,8 +966,8 @@ def gemini_direct():
             raise Exception("GEMINI_API_KEY not found")
         
         genai.configure(api_key=api_key)
-        # Use the latest Gemini 2.5 Flash-Lite model
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        # Use the latest Gemini 2.5 Flash model
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         # Create a simple prompt for Class 10 Science
         prompt = f"""You are Vidya, an AI tutor for Class 10 Science students in India following the NCERT curriculum.
@@ -1022,7 +1022,7 @@ def test_gemini():
             return jsonify({'error': 'GEMINI_API_KEY not found'}), 500
         
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content("Say hello in one sentence.")
         response_text = response.text if response and response.text else None
         
@@ -1030,7 +1030,7 @@ def test_gemini():
             'success': bool(response_text),
             'response': response_text,
             'api_key_present': bool(api_key),
-            'model': 'gemini-2.5-flash-lite'
+            'model': 'gemini-2.5-flash'
         })
     except Exception as e:
         logger.error(f"Gemini test failed: {str(e)}")
