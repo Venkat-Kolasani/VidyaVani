@@ -175,7 +175,7 @@ function updateVoiceUI(listening) {
     }
 }
 
-// Text-to-Speech
+// Text-to-Speech with improved voice selection
 function speakText(text, lang = 'en-IN') {
     // Stop any ongoing speech
     if (synthesis.speaking) {
@@ -189,41 +189,80 @@ function speakText(text, lang = 'en-IN') {
     // Create utterance
     currentUtterance = new SpeechSynthesisUtterance(text);
     currentUtterance.lang = lang;
-    currentUtterance.rate = 0.9; // Slightly slower for clarity
+    currentUtterance.rate = 0.95; // Natural speaking speed
     currentUtterance.pitch = 1.0;
     currentUtterance.volume = 1.0;
     
     // Get available voices
     const voices = synthesis.getVoices();
     
-    // Try to find Indian English voice
-    const indianVoice = voices.find(voice => 
-        voice.lang === 'en-IN' || 
-        voice.lang.startsWith('en-') && voice.name.includes('India')
+    // Try to find the best quality voice
+    // Priority: Google voices > Microsoft voices > Native voices
+    let selectedVoice = null;
+    
+    // First try: Google voices (highest quality)
+    selectedVoice = voices.find(voice => 
+        voice.name.includes('Google') && 
+        (voice.lang === 'en-IN' || voice.lang === 'en-US' || voice.lang === 'en-GB')
     );
     
-    if (indianVoice) {
-        currentUtterance.voice = indianVoice;
+    // Second try: Microsoft voices (good quality)
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => 
+            voice.name.includes('Microsoft') && 
+            voice.lang.startsWith('en-')
+        );
+    }
+    
+    // Third try: Any Indian English voice
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.lang === 'en-IN');
+    }
+    
+    // Fourth try: Any English voice with natural in the name
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => 
+            voice.lang.startsWith('en-') && 
+            (voice.name.includes('Natural') || voice.name.includes('Enhanced'))
+        );
+    }
+    
+    // Fifth try: Any English voice
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.lang.startsWith('en-'));
+    }
+    
+    if (selectedVoice) {
+        currentUtterance.voice = selectedVoice;
+        console.log('Using voice:', selectedVoice.name);
     }
     
     currentUtterance.onstart = () => {
-        app.log('info', 'Speech synthesis started');
+        if (window.app && window.app.log) {
+            window.app.log('info', 'Speech synthesis started');
+        }
     };
     
     currentUtterance.onend = () => {
-        app.log('info', 'Speech synthesis completed');
+        if (window.app && window.app.log) {
+            window.app.log('info', 'Speech synthesis completed');
+        }
         currentUtterance = null;
     };
     
     currentUtterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
-        app.log('error', `Speech synthesis error: ${event.error}`);
+        if (window.app && window.app.log) {
+            window.app.log('error', `Speech synthesis error: ${event.error}`);
+        }
         currentUtterance = null;
     };
     
     // Speak
     synthesis.speak(currentUtterance);
-    app.log('info', 'Speaking response...');
+    if (window.app && window.app.log) {
+        window.app.log('info', 'Speaking response...');
+    }
 }
 
 // Stop Speaking
