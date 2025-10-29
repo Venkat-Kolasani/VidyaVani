@@ -184,6 +184,11 @@ async function endSession() {
         // Reset pipeline
         pipeline.reset();
         
+        // Stop any ongoing speech
+        if (window.voice && window.voice.stopSpeaking) {
+            window.voice.stopSpeaking();
+        }
+        
         updateStatus('', 'Ready to Start');
         
         showToast('Session ended', 'info');
@@ -647,6 +652,11 @@ function toggleSpeaker() {
                 <line x1="17" y1="9" x2="23" y2="15"></line>
             </svg>
         `;
+        
+        // Stop any ongoing speech
+        if (window.voice && window.voice.stopSpeaking) {
+            window.voice.stopSpeaking();
+        }
     } else {
         btn.classList.remove('off');
         // Change to speaker on icon
