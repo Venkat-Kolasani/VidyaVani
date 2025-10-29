@@ -425,7 +425,7 @@ async function tryGeminiDirect(questionText) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 question: questionText,
-                language: app.state.currentLanguage 
+                language: state.currentLanguage 
             })
         }, 30000);
         
@@ -433,6 +433,7 @@ async function tryGeminiDirect(questionText) {
         
         if (response.ok) {
             const data = await response.json();
+            console.log('Gemini direct response data:', data);
             
             if (data.success && data.response) {
                 addMessage('assistant', data.response);
@@ -450,7 +451,13 @@ async function tryGeminiDirect(questionText) {
                 }
                 
                 return; // Success - stop here
+            } else {
+                console.error('Gemini response invalid:', data);
+                log('error', `Gemini response invalid: success=${data.success}, has_response=${!!data.response}`);
             }
+        } else {
+            console.error('Gemini HTTP error:', response.status);
+            log('error', `Gemini HTTP error: ${response.status}`);
         }
         
         // If Gemini also fails, use demo responses

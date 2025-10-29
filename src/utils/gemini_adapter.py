@@ -70,7 +70,7 @@ class GeminiAdapter:
     Adapter to use Google Gemini API with OpenAI-compatible interface
     """
     
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash-lite"):
         """
         Initialize Gemini adapter
         
@@ -89,6 +89,7 @@ class GeminiAdapter:
         
         # Map model names to correct Gemini format (with models/ prefix)
         model_mapping = {
+            "gemini-2.5-flash-lite": "models/gemini-2.5-flash-lite",
             "gemini-2.5-flash": "models/gemini-2.5-flash",
             "gemini-2.0-flash-exp": "models/gemini-2.0-flash-exp",
             "gemini-2.0-flash": "models/gemini-2.0-flash", 
@@ -97,7 +98,7 @@ class GeminiAdapter:
             "gemini-pro": "models/gemini-pro"
         }
         
-        gemini_model = model_mapping.get(model, "models/gemini-2.5-flash")
+        gemini_model = model_mapping.get(model, "models/gemini-2.5-flash-lite")
         logger.info(f"Using Gemini model: {gemini_model}")
         
         # Initialize models
@@ -240,7 +241,7 @@ class GeminiOpenAIClient:
     OpenAI-compatible client using Gemini backend
     """
     
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash-lite"):
         """
         Initialize Gemini client with OpenAI-compatible interface
         
@@ -293,7 +294,7 @@ def test_gemini_adapter():
         # Test chat completion
         print("🧪 Testing chat completion...")
         response = client.chat.completions.create(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             messages=[
                 {"role": "system", "content": "You are a helpful science tutor."},
                 {"role": "user", "content": "What is photosynthesis?"}

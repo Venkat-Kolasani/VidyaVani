@@ -10,34 +10,34 @@ let currentUtterance = null;
 function initializeVoiceRecognition() {
     // Check for browser support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
         console.warn('Speech recognition not supported in this browser');
         app.log('warning', 'Speech recognition not supported in this browser');
         app.showToast('Voice input not supported in this browser', 'warning');
         return;
     }
-    
+
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-IN'; // Indian English
     recognition.maxAlternatives = 1;
-    
+
     recognition.onstart = () => {
         isListening = true;
         updateVoiceUI(true);
         app.log('info', 'Voice recognition started');
     };
-    
+
     recognition.onresult = (event) => {
         const transcript = Array.from(event.results)
             .map(result => result[0])
             .map(result => result.transcript)
             .join('');
-        
+
         console.log('Speech recognition result:', transcript, 'isFinal:', event.results[0].isFinal);
-        
+
         // Show interim results in UI
         if (!event.results[0].isFinal) {
             // Show interim transcript
@@ -48,12 +48,12 @@ function initializeVoiceRecognition() {
             handleVoiceInput(transcript);
         }
     };
-    
+
     recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         isListening = false;
         updateVoiceUI(false);
-        
+
         let errorMessage = 'Voice recognition error';
         switch (event.error) {
             case 'no-speech':
@@ -68,17 +68,17 @@ function initializeVoiceRecognition() {
             default:
                 errorMessage = `Voice recognition error: ${event.error}`;
         }
-        
+
         app.showToast(errorMessage, 'error');
         app.log('error', errorMessage);
     };
-    
+
     recognition.onend = () => {
         isListening = false;
         updateVoiceUI(false);
         app.log('info', 'Voice recognition ended');
     };
-    
+
     app.log('success', 'Voice recognition initialized');
 }
 
@@ -88,17 +88,17 @@ function toggleVoiceInput() {
         app.showToast('Please start a session first', 'warning');
         return;
     }
-    
+
     if (app.state.isMuted) {
         app.showToast('Please unmute microphone first', 'warning');
         return;
     }
-    
+
     if (!recognition) {
         app.showToast('Voice recognition not available', 'error');
         return;
     }
-    
+
     if (isListening) {
         stopListening();
     } else {
@@ -133,13 +133,13 @@ function handleVoiceInput(transcript) {
         app.log('warning', 'Empty transcript received');
         return;
     }
-    
+
     const cleanTranscript = transcript.trim();
     console.log('Processing voice input:', cleanTranscript);
-    
+
     app.log('success', `Voice input received: ${cleanTranscript}`);
     app.showToast('Processing your question...', 'info');
-    
+
     // Process the question
     app.askQuestion(cleanTranscript);
 }
@@ -149,13 +149,13 @@ function updateVoiceUI(listening) {
     const voiceBtn = document.getElementById('voice-btn');
     const visualizer = document.getElementById('voice-visualizer');
     const listeningIndicator = document.getElementById('listening-indicator');
-    
+
     if (listening) {
         voiceBtn.classList.add('listening');
         voiceBtn.querySelector('.btn-text').textContent = 'Listening... Speak now!';
         visualizer.classList.add('active');
         listeningIndicator.classList.remove('hidden');
-        
+
         // Change mic icon color when listening
         const micSvg = voiceBtn.querySelector('.mic-icon svg');
         if (micSvg) {
@@ -166,7 +166,7 @@ function updateVoiceUI(listening) {
         voiceBtn.querySelector('.btn-text').textContent = 'Tap to Speak';
         visualizer.classList.remove('active');
         listeningIndicator.classList.add('hidden');
-        
+
         // Reset mic icon color
         const micSvg = voiceBtn.querySelector('.mic-icon svg');
         if (micSvg) {
@@ -181,75 +181,75 @@ function speakText(text, lang = 'en-IN') {
     if (synthesis.speaking) {
         synthesis.cancel();
     }
-    
+
     if (!text || text.trim().length === 0) {
         return;
     }
-    
+
     // Create utterance
     currentUtterance = new SpeechSynthesisUtterance(text);
     currentUtterance.lang = lang;
     currentUtterance.rate = 0.95; // Natural speaking speed
     currentUtterance.pitch = 1.0;
     currentUtterance.volume = 1.0;
-    
+
     // Get available voices
     const voices = synthesis.getVoices();
-    
+
     // Try to find the best quality voice
     // Priority: Google voices > Microsoft voices > Native voices
     let selectedVoice = null;
-    
+
     // First try: Google voices (highest quality)
-    selectedVoice = voices.find(voice => 
-        voice.name.includes('Google') && 
+    selectedVoice = voices.find(voice =>
+        voice.name.includes('Google') &&
         (voice.lang === 'en-IN' || voice.lang === 'en-US' || voice.lang === 'en-GB')
     );
-    
+
     // Second try: Microsoft voices (good quality)
     if (!selectedVoice) {
-        selectedVoice = voices.find(voice => 
-            voice.name.includes('Microsoft') && 
+        selectedVoice = voices.find(voice =>
+            voice.name.includes('Microsoft') &&
             voice.lang.startsWith('en-')
         );
     }
-    
+
     // Third try: Any Indian English voice
     if (!selectedVoice) {
         selectedVoice = voices.find(voice => voice.lang === 'en-IN');
     }
-    
+
     // Fourth try: Any English voice with natural in the name
     if (!selectedVoice) {
-        selectedVoice = voices.find(voice => 
-            voice.lang.startsWith('en-') && 
+        selectedVoice = voices.find(voice =>
+            voice.lang.startsWith('en-') &&
             (voice.name.includes('Natural') || voice.name.includes('Enhanced'))
         );
     }
-    
+
     // Fifth try: Any English voice
     if (!selectedVoice) {
         selectedVoice = voices.find(voice => voice.lang.startsWith('en-'));
     }
-    
+
     if (selectedVoice) {
         currentUtterance.voice = selectedVoice;
         console.log('Using voice:', selectedVoice.name);
     }
-    
+
     currentUtterance.onstart = () => {
         if (window.app && window.app.log) {
             window.app.log('info', 'Speech synthesis started');
         }
     };
-    
+
     currentUtterance.onend = () => {
         if (window.app && window.app.log) {
             window.app.log('info', 'Speech synthesis completed');
         }
         currentUtterance = null;
     };
-    
+
     currentUtterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         if (window.app && window.app.log) {
@@ -257,7 +257,7 @@ function speakText(text, lang = 'en-IN') {
         }
         currentUtterance = null;
     };
-    
+
     // Speak
     synthesis.speak(currentUtterance);
     if (window.app && window.app.log) {

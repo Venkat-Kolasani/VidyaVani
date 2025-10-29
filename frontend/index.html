@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <!-- Main Container -->
     <div class="app-container">
@@ -57,7 +59,7 @@
                                 <p class="ivr-text">Welcome to VidyaVani! Your AI-powered learning assistant.</p>
                                 <p class="ivr-instruction">Please select an option:</p>
                             </div>
-                            
+
                             <div class="ivr-options" id="ivr-options">
                                 <div class="ivr-option" onclick="handleKeypadPress('1')">
                                     <span class="option-key">1</span>
@@ -68,20 +70,29 @@
                                     <span class="option-text">Telugu</span>
                                 </div>
                             </div>
-                            
+
                             <!-- Phone Keypad -->
                             <div class="phone-keypad" id="phone-keypad">
                                 <button class="keypad-btn" onclick="handleKeypadPress('1')">1</button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('2')">2<span class="letters">ABC</span></button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('3')">3<span class="letters">DEF</span></button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('4')">4<span class="letters">GHI</span></button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('5')">5<span class="letters">JKL</span></button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('6')">6<span class="letters">MNO</span></button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('7')">7<span class="letters">PQRS</span></button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('8')">8<span class="letters">TUV</span></button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('9')">9<span class="letters">WXYZ</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('2')">2<span
+                                        class="letters">ABC</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('3')">3<span
+                                        class="letters">DEF</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('4')">4<span
+                                        class="letters">GHI</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('5')">5<span
+                                        class="letters">JKL</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('6')">6<span
+                                        class="letters">MNO</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('7')">7<span
+                                        class="letters">PQRS</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('8')">8<span
+                                        class="letters">TUV</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('9')">9<span
+                                        class="letters">WXYZ</span></button>
                                 <button class="keypad-btn" onclick="handleKeypadPress('*')">*</button>
-                                <button class="keypad-btn" onclick="handleKeypadPress('0')">0<span class="letters">+</span></button>
+                                <button class="keypad-btn" onclick="handleKeypadPress('0')">0<span
+                                        class="letters">+</span></button>
                                 <button class="keypad-btn" onclick="handleKeypadPress('#')">#</button>
                             </div>
                         </div>
@@ -89,7 +100,7 @@
                         <!-- Conversation Screen -->
                         <div class="conversation-screen hidden" id="conversation-screen">
                             <div class="messages" id="messages"></div>
-                            
+
                             <!-- Voice Input Area -->
                             <div class="voice-input-area">
                                 <div class="voice-visualizer" id="voice-visualizer">
@@ -99,10 +110,11 @@
                                     <div class="wave"></div>
                                     <div class="wave"></div>
                                 </div>
-                                
+
                                 <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()">
                                     <span class="mic-icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
                                             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                                             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                                             <line x1="12" y1="19" x2="12" y2="23"></line>
@@ -111,7 +123,7 @@
                                     </span>
                                     <span class="btn-text">Tap to Speak</span>
                                 </button>
-                                
+
                                 <div class="listening-indicator hidden" id="listening-indicator">
                                     <div class="pulse"></div>
                                     <span>Listening...</span>
@@ -147,7 +159,8 @@
                 <!-- Phone Controls -->
                 <div class="phone-controls">
                     <button class="control-btn mute-btn" id="mute-btn" onclick="toggleMute()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                             <line x1="12" y1="19" x2="12" y2="23"></line>
@@ -155,13 +168,17 @@
                         </svg>
                     </button>
                     <button class="control-btn end-btn hidden" id="end-btn" onclick="endSession()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                            </path>
                             <line x1="23" y1="1" x2="1" y2="23"></line>
                         </svg>
                     </button>
                     <button class="control-btn speaker-btn" id="speaker-btn" onclick="toggleSpeaker()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                             <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
                             <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
@@ -197,7 +214,7 @@
                 <button class="tab" onclick="switchTab('metrics')">Metrics</button>
                 <button class="tab" onclick="switchTab('logs')">Logs</button>
             </div>
-            
+
             <!-- Pipeline Tab -->
             <div class="tab-content active" id="pipeline-tab">
                 <div class="pipeline-header">
@@ -213,9 +230,9 @@
                         </div>
                         <div class="step-indicator"></div>
                     </div>
-                    
+
                     <div class="pipeline-arrow">↓</div>
-                    
+
                     <div class="pipeline-step" id="step-stt">
                         <div class="step-icon">🎤</div>
                         <div class="step-content">
@@ -225,9 +242,9 @@
                         </div>
                         <div class="step-indicator"></div>
                     </div>
-                    
+
                     <div class="pipeline-arrow">↓</div>
-                    
+
                     <div class="pipeline-step" id="step-rag">
                         <div class="step-icon">🔍</div>
                         <div class="step-content">
@@ -237,9 +254,9 @@
                         </div>
                         <div class="step-indicator"></div>
                     </div>
-                    
+
                     <div class="pipeline-arrow">↓</div>
-                    
+
                     <div class="pipeline-step" id="step-gemini">
                         <div class="step-icon">🤖</div>
                         <div class="step-content">
@@ -249,9 +266,9 @@
                         </div>
                         <div class="step-indicator"></div>
                     </div>
-                    
+
                     <div class="pipeline-arrow">↓</div>
-                    
+
                     <div class="pipeline-step" id="step-tts">
                         <div class="step-icon">🔊</div>
                         <div class="step-content">
@@ -261,9 +278,9 @@
                         </div>
                         <div class="step-indicator"></div>
                     </div>
-                    
+
                     <div class="pipeline-arrow">↓</div>
-                    
+
                     <div class="pipeline-step" id="step-response">
                         <div class="step-icon">✅</div>
                         <div class="step-content">
@@ -307,7 +324,7 @@
                         <div class="metric-value" id="ai-requests">0</div>
                     </div>
                 </div>
-                
+
                 <div class="chart-container">
                     <h4>Response Time Trend</h4>
                     <canvas id="response-chart"></canvas>
@@ -339,5 +356,6 @@
     <script src="/frontend/js/voice.js"></script>
     <script src="/frontend/js/network.js"></script>
 </body>
+
 </html>
 ""

@@ -966,7 +966,8 @@ def gemini_direct():
             raise Exception("GEMINI_API_KEY not found")
         
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        # Use the latest Gemini 2.5 Flash-Lite model
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
         
         # Create a simple prompt for Class 10 Science
         prompt = f"""You are Vidya, an AI tutor for Class 10 Science students in India following the NCERT curriculum.
@@ -981,10 +982,13 @@ Please provide a clear, educational answer suitable for Class 10 students. Inclu
 Keep the language simple and engaging. Limit your response to 3-4 sentences for clarity."""
         
         # Generate response
+        logger.info(f"Calling Gemini with prompt length: {len(prompt)}")
         response = model.generate_content(prompt)
         response_text = response.text if response and response.text else None
+        logger.info(f"Gemini response received: {bool(response_text)}")
         
         if response_text:
+            logger.info(f"Gemini response length: {len(response_text)}")
             return jsonify({
                 'success': True,
                 'question': question,
@@ -994,9 +998,10 @@ Keep the language simple and engaging. Limit your response to 3-4 sentences for 
                 'method': 'gemini_direct'
             })
         else:
+            logger.error("Gemini returned empty response")
             return jsonify({
                 'success': False,
-                'error': 'Failed to generate response'
+                'error': 'Gemini returned empty response'
             }), 500
     
     except Exception as e:
@@ -1005,6 +1010,33 @@ Keep the language simple and engaging. Limit your response to 3-4 sentences for 
             'success': False,
             'error': 'Failed to process question',
             'message': str(e)
+        }), 500
+
+@app.route('/api/test-gemini', methods=['GET'])
+def test_gemini():
+    """Test Gemini API connection"""
+    try:
+        import google.generativeai as genai
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            return jsonify({'error': 'GEMINI_API_KEY not found'}), 500
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        response = model.generate_content("Say hello in one sentence.")
+        response_text = response.text if response and response.text else None
+        
+        return jsonify({
+            'success': bool(response_text),
+            'response': response_text,
+            'api_key_present': bool(api_key),
+            'model': 'gemini-2.5-flash-lite'
+        })
+    except Exception as e:
+        logger.error(f"Gemini test failed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500
 
 # Performance Monitoring API Endpoints
