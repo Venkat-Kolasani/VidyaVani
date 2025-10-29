@@ -233,7 +233,7 @@ async function monitorBackendHealth() {
 
 // Start periodic health monitoring
 setInterval(() => {
-    if (app.state.isActive) {
+    if (window.app && window.app.state && window.app.state.isActive) {
         monitorBackendHealth();
     }
 }, 30000); // Every 30 seconds

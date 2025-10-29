@@ -247,7 +247,9 @@ function changeLanguage(lang) {
 if (synthesis.onvoiceschanged !== undefined) {
     synthesis.onvoiceschanged = () => {
         const voices = synthesis.getVoices();
-        app.log('info', `Loaded ${voices.length} voices`);
+        if (window.app && window.app.log) {
+            window.app.log('info', `Loaded ${voices.length} voices`);
+        }
     };
 }
 
