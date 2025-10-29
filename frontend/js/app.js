@@ -127,7 +127,9 @@ async function startSession() {
             log('success', `Session created: ${state.sessionId}`);
             
             // Track in network
-            trackNetworkCall('POST', '/api/session/create', 200, Date.now() - performance.now());
+            if (window.network && window.network.trackNetworkCall) {
+                window.network.trackNetworkCall('POST', '/api/session/create', 200, Date.now() - performance.now());
+            }
         } else {
             throw new Error('Failed to create session');
         }
@@ -319,8 +321,10 @@ async function askQuestion(questionText) {
                 log('success', `Response generated in ${responseTime}ms`);
                 
                 // Track network call
-                trackNetworkCall('POST', '/api/demo/response', 200, responseTime);
-                updateMetrics();
+                if (window.network && window.network.trackNetworkCall) {
+                    window.network.trackNetworkCall('POST', '/api/demo/response', 200, responseTime);
+                    window.network.updateMetrics();
+                }
                 return; // IMPORTANT: Stop here, we got a response
             } else {
                 // If no cached response, try to generate using real backend
@@ -386,8 +390,10 @@ async function generateRealAIResponse(questionText) {
                 log('success', `${method} response generated in ${responseTime}ms`);
                 
                 // Track as AI request
-                trackNetworkCall('POST', '/api/answer-question', 200, responseTime);
-                updateMetrics();
+                if (window.network && window.network.trackNetworkCall) {
+                    window.network.trackNetworkCall('POST', '/api/answer-question', 200, responseTime);
+                    window.network.updateMetrics();
+                }
                 
                 return; // Success - stop here
             }
@@ -438,8 +444,10 @@ async function tryGeminiDirect(questionText) {
                 showToast('Response from Gemini AI', 'success');
                 log('success', `Gemini direct response in ${responseTime}ms`);
                 
-                trackNetworkCall('POST', '/api/gemini-direct', 200, responseTime);
-                updateMetrics();
+                if (window.network && window.network.trackNetworkCall) {
+                    window.network.trackNetworkCall('POST', '/api/gemini-direct', 200, responseTime);
+                    window.network.updateMetrics();
+                }
                 
                 return; // Success - stop here
             }
@@ -502,6 +510,14 @@ async function generateDemoResponse(questionText) {
             'blood': 'Blood is a fluid connective tissue that transports oxygen, nutrients, hormones, and waste products throughout the body. It consists of plasma (liquid part) and blood cells. Red blood cells contain hemoglobin and carry oxygen. White blood cells fight infections. Platelets help in blood clotting. Blood also helps regulate body temperature and pH balance.',
             
             'reaction': 'A chemical reaction is a process where substances (reactants) are transformed into new substances (products) with different properties. Chemical reactions involve breaking and forming of chemical bonds. They can be classified as combination, decomposition, displacement, or double displacement reactions. Chemical equations represent reactions using symbols and formulas, following the law of conservation of mass.',
+            
+            'series': 'In a series circuit, components are connected end-to-end in a single path. The same current flows through all components. If one component fails, the entire circuit breaks. The total resistance is the sum of individual resistances. Series circuits are used in applications where you want the same current through all components, like decorative lights.',
+            
+            'parallel': 'In a parallel circuit, components are connected across common points, providing multiple paths for current. Each component receives the full voltage. If one component fails, others continue to work. The total resistance is less than the smallest individual resistance. Parallel circuits are used in household wiring where each appliance should work independently.',
+            
+            'circuit': 'An electric circuit is a closed path through which electric current flows. It consists of a power source (battery), conducting wires, and electrical components (bulbs, resistors, etc.). Circuits can be connected in series (single path) or parallel (multiple paths). A switch is used to open or close the circuit to control current flow.',
+            
+            'dna': 'DNA (Deoxyribonucleic Acid) is the genetic material that carries hereditary information. DNA copying or replication is essential for reproduction and cell division. During replication, the DNA double helix unwinds and each strand serves as a template for creating a new complementary strand. This ensures that genetic information is accurately passed from parent to offspring, maintaining species characteristics.',
         };
         
         // Find relevant response
@@ -531,8 +547,10 @@ async function generateDemoResponse(questionText) {
         log('success', 'AI response generated');
         
         // Track as AI request
-        trackNetworkCall('POST', '/api/ai/generate', 200, 1500);
-        updateMetrics();
+        if (window.network && window.network.trackNetworkCall) {
+            window.network.trackNetworkCall('POST', '/api/ai/generate', 200, 1500);
+            window.network.updateMetrics();
+        }
         
     } catch (error) {
         console.error('Failed to generate AI response:', error);
