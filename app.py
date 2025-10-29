@@ -961,9 +961,9 @@ def gemini_direct():
         import google.generativeai as genai
         
         # Configure Gemini
-        api_key = os.getenv('GEMINI_API_KEY')
+        api_key = os.getenv('GOOGLE_GEMINI_API_KEY') or os.getenv('GEMINI_API_KEY')
         if not api_key:
-            raise Exception("GEMINI_API_KEY not found")
+            raise Exception("GOOGLE_GEMINI_API_KEY or GEMINI_API_KEY not found")
         
         genai.configure(api_key=api_key)
         # Use the latest Gemini 2.5 Flash model
@@ -1017,9 +1017,9 @@ def test_gemini():
     """Test Gemini API connection"""
     try:
         import google.generativeai as genai
-        api_key = os.getenv('GEMINI_API_KEY')
+        api_key = os.getenv('GOOGLE_GEMINI_API_KEY') or os.getenv('GEMINI_API_KEY')
         if not api_key:
-            return jsonify({'error': 'GEMINI_API_KEY not found'}), 500
+            return jsonify({'error': 'GOOGLE_GEMINI_API_KEY or GEMINI_API_KEY not found'}), 500
         
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
