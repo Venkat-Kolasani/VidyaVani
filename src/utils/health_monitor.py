@@ -58,6 +58,16 @@ class HealthMonitor:
         """Check health of external APIs"""
         start_time = time.time()
         
+        # Skip OpenAI check if using Gemini
+        if self.config.USE_GEMINI:
+            return HealthCheckResult(
+                component="ai_api",
+                status="healthy",
+                response_time=0.0,
+                message="Using Gemini API (OpenAI check skipped)",
+                timestamp=datetime.now()
+            )
+        
         try:
             # Test OpenAI API
             import openai
@@ -275,9 +285,9 @@ class HealthMonitor:
         except Exception as e:
             return HealthCheckResult(
                 component="redis",
-                status="critical",
+                status="warning",
                 response_time=time.time() - start_time,
-                message=f"Redis error: {str(e)}",
+                message=f"Redis unavailable (optional): {str(e)}",
                 timestamp=datetime.now()
             )
     
