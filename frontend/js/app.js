@@ -541,7 +541,7 @@ async function generateDemoResponse(questionText) {
         // Fallback response - provide a helpful answer
         if (!response) {
             // Generate a generic but helpful response
-            response = `I understand you're asking about "${questionText}". While I'm having trouble connecting to the full AI system right now, I can tell you that this is an important topic in Class 10 Science. For the best learning experience, the system normally searches through NCERT textbooks and provides detailed explanations. Please try asking about topics like: photosynthesis, light reflection, electric current, chemical reactions, acids and bases, or human body systems. You can also try the original demo simulator at /demo/simulator for pre-loaded responses.`;
+            response = `I understand you're asking about "${questionText}". While I'm having trouble connecting to the full AI system right now, I can tell you that this is an important topic in Class 10 Science. For the best learning experience, the system normally searches through NCERT textbooks and provides detailed explanations. Please try asking about topics like: photosynthesis, light reflection, electric current, chemical reactions, acids and bases, or human body systems.`;
         }
         
         addMessage('assistant', response);
