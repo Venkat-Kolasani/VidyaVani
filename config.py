@@ -27,7 +27,15 @@ class Config:
         SESSION_COOKIE_HTTPONLY: bool = True
         SESSION_COOKIE_SAMESITE: str = 'Lax'
     
-    # Exotel Configuration
+    # Twilio Configuration (replaces Exotel)
+    TWILIO_ACCOUNT_SID: str = os.getenv('TWILIO_ACCOUNT_SID', '')
+    TWILIO_AUTH_TOKEN: str = os.getenv('TWILIO_AUTH_TOKEN', '')
+    TWILIO_PHONE_NUMBER: str = os.getenv('TWILIO_PHONE_NUMBER', '')
+    
+    # Base URL for webhooks
+    BASE_URL: str = os.getenv('BASE_URL', 'https://vidyavani.onrender.com')
+    
+    # Legacy Exotel Configuration (deprecated, keeping for backward compatibility)
     EXOTEL_ACCOUNT_SID: str = os.getenv('EXOTEL_ACCOUNT_SID', '')
     EXOTEL_API_KEY: str = os.getenv('EXOTEL_API_KEY', '')
     EXOTEL_API_TOKEN: str = os.getenv('EXOTEL_API_TOKEN', '')

@@ -16,7 +16,8 @@ google-cloud-speech>=2.21.0
 google-cloud-texttospeech>=2.14.2
 google-auth>=2.23.4
 
-# HTTP Client for Exotel API Integration
+# Phone Integration
+twilio>=8.10.0
 requests>=2.31.0
 
 # PDF Processing (for content management)
