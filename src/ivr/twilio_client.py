@@ -5,7 +5,7 @@ Twilio API client for VidyaVani IVR Learning System
 import logging
 from typing import Dict, Optional, Any
 from twilio.rest import Client
-from twilio.twiml.voice_response import VoiceResponse, Gather, Say, Record, Play
+from twilio.twiml.voice_response import VoiceResponse, Gather
 from config import Config
 
 logger = logging.getLogger(__name__)
