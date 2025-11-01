@@ -88,7 +88,7 @@ class Config:
     DEPLOYMENT_PLATFORM: str = os.getenv('DEPLOYMENT_PLATFORM', 'local')  # render, railway, docker, local
     
     # Load Balancing Configuration
-    GUNICORN_WORKERS: int = int(os.getenv('GUNICORN_WORKERS', '2' if IS_PRODUCTION else '1'))
+    GUNICORN_WORKERS: int = int(os.getenv('GUNICORN_WORKERS', '1'))  # Use 1 worker for 512MB instance
     GUNICORN_TIMEOUT: int = int(os.getenv('GUNICORN_TIMEOUT', '120'))
     GUNICORN_MAX_REQUESTS: int = int(os.getenv('GUNICORN_MAX_REQUESTS', '1000'))
     GUNICORN_MAX_REQUESTS_JITTER: int = int(os.getenv('GUNICORN_MAX_REQUESTS_JITTER', '100'))
