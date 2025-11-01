@@ -124,26 +124,41 @@ class TwilioClient:
     
     def get_account_details(self) -> Dict[str, Any]:
         """
-        Get account details and balance
+        Get account details (without balance)
         
         Returns:
             Dict containing account information
         """
         try:
             account = self.client.api.accounts(self.account_sid).fetch()
-            balance = self.client.balance.fetch()
             
             logger.info("Retrieved account details successfully")
             return {
                 'account_sid': account.sid,
                 'friendly_name': account.friendly_name,
-                'status': account.status,
-                'balance': balance.balance,
-                'currency': balance.currency
+                'status': account.status
             }
             
         except Exception as e:
             logger.error(f"Failed to get account details: {str(e)}")
+            raise
+
+    def get_balance(self) -> Dict[str, Any]:
+        """
+        Get account balance
+        
+        Returns:
+            Dict containing balance and currency
+        """
+        try:
+            balance = self.client.balance.fetch()
+            logger.info("Retrieved account balance successfully")
+            return {
+                'balance': balance.balance,
+                'currency': balance.currency
+            }
+        except Exception as e:
+            logger.error(f"Failed to get account balance: {str(e)}")
             raise
     
     def validate_connection(self) -> bool:
