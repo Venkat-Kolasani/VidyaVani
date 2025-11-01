@@ -5,6 +5,11 @@ Twilio Setup and Validation Script for VidyaVani
 
 import os
 import sys
+
+# Add project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -26,6 +31,8 @@ def check_twilio_credentials():
         issues.append("❌ TWILIO_ACCOUNT_SID not configured")
     else:
         print(f"✅ TWILIO_ACCOUNT_SID: {account_sid[:10]}...")
+        if not account_sid.startswith('AC'):
+            issues.append("⚠️  TWILIO_ACCOUNT_SID should start with 'AC' (not 'US')")
     
     if not auth_token or auth_token == 'your_twilio_auth_token_here':
         issues.append("❌ TWILIO_AUTH_TOKEN not configured")
