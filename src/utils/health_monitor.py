@@ -169,19 +169,17 @@ class HealthMonitor:
                     timestamp=datetime.now()
                 )
             
-            # Test FAISS index loading
-            import faiss
-            import numpy as np
-            
-            index = faiss.read_index(str(vector_db_path / 'faiss_index.bin'))
+            # Check file size instead of loading (memory efficient)
+            index_file = vector_db_path / 'faiss_index.bin'
+            file_size_mb = index_file.stat().st_size / (1024 * 1024)
             
             return HealthCheckResult(
                 component="vector_database",
                 status="healthy",
                 response_time=response_time,
-                message=f"Vector database healthy ({index.ntotal} vectors)",
+                message=f"Vector database healthy ({file_size_mb:.1f}MB)",
                 timestamp=datetime.now(),
-                details={"vector_count": index.ntotal}
+                details={"file_size_mb": file_size_mb}
             )
             
         except Exception as e:
